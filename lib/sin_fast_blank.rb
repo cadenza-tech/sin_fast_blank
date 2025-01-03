@@ -17,3 +17,5 @@ else
     require 'sin_fast_blank.so'
   end
 end
+
+require 'sin_fast_blank/version'
