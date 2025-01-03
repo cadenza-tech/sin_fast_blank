@@ -1,4 +1,4 @@
-package com.headius.jruby.fast_blank;
+package sin_fast_blank;
 
 import org.jcodings.Encoding;
 import org.jruby.Ruby;
@@ -11,9 +11,9 @@ import org.jruby.util.ByteList;
 import org.jruby.util.StringSupport;
 import org.jruby.util.io.EncodingUtils;
 
-public class FastBlankLibrary implements Library {
+public class SinFastBlankLibrary implements Library {
     public void load(Ruby runtime, boolean wrap) {
-        runtime.getString().defineAnnotatedMethods(FastBlankLibrary.class);
+        runtime.getString().defineAnnotatedMethods(SinFastBlankLibrary.class);
     }
 
     @JRubyMethod(name = "blank_as?")

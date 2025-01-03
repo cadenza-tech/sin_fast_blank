@@ -1,16 +1,7 @@
-#include <stdio.h>
 #include <ruby.h>
 #include <ruby/encoding.h>
-#include <ruby/re.h>
-#include <ruby/version.h>
 
 #define STR_ENC_GET(str) rb_enc_from_index(ENCODING_GET(str))
-
-#ifndef RUBY_API_VERSION_CODE
-# define ruby_version_before_2_2() 1
-#else
-# define ruby_version_before_2_2() (RUBY_API_VERSION_CODE < 20200)
-#endif
 
 static VALUE
 rb_str_blank_as(VALUE str)
@@ -53,10 +44,6 @@ rb_str_blank_as(VALUE str)
       case 0x202f:
       case 0x205f:
       case 0x3000:
-#if ruby_version_before_2_2()
-      case 0x180e:
-#endif
-          /* found */
           break;
       default:
           return Qfalse;
@@ -88,7 +75,7 @@ rb_str_blank(VALUE str)
 }
 
 
-void Init_fast_blank( void )
+void Init_sin_fast_blank( void )
 {
   rb_define_method(rb_cString, "blank?", rb_str_blank, 0);
   rb_define_method(rb_cString, "blank_as?", rb_str_blank_as, 0);

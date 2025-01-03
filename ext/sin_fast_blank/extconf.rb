@@ -2,4 +2,4 @@
 
 require 'mkmf'
 
-create_makefile 'fast_blank'
+create_makefile 'sin_fast_blank'

@@ -7,13 +7,13 @@ end
 
 case RUBY_ENGINE
 when 'jruby'
-  require 'fast_blank.jar'
+  require 'sin_fast_blank.jar'
 
-  JRuby::Util.load_ext('com.headius.jruby.fast_blank.FastBlankLibrary')
+  JRuby::Util.load_ext('sin_fast_blank.SinFastBlankLibrary')
 else
   if RUBY_PLATFORM.include?('darwin')
-    require 'fast_blank.bundle'
+    require 'sin_fast_blank.bundle'
   else
-    require 'fast_blank.so'
+    require 'sin_fast_blank.so'
   end
 end
