@@ -1,39 +1,36 @@
-require 'bundler'
+# frozen_string_literal: true
+
 require 'bundler/gem_tasks'
-Bundler.setup
-
-require 'rake'
-require 'rake/extensiontask'
+require 'rake/testtask'
+require 'rubocop/rake_task'
 require 'rubygems/package_task'
-require 'rspec/core/rake_task'
 
-gem = Gem::Specification.load( File.dirname(__FILE__) + '/fast_blank.gemspec' )
+gemspec = Gem::Specification.load("#{__dir__}/sin_fast_blank.gemspec")
 
 if RUBY_ENGINE == 'jruby'
   require 'rake/javaextensiontask'
-  Rake::JavaExtensionTask.new( 'fast_blank', gem ) do |ext|
-    ext.ext_dir = 'ext/java'
-    ext.source_version = '1.8'
-    ext.target_version = '1.8'
+
+  Rake::JavaExtensionTask.new('sin_fast_blank', gemspec) do |task|
+    task.ext_dir = 'ext/java'
+    task.source_version = '1.8'
+    task.target_version = '1.8'
   end
-  # Install should not compile since it is already compiled.
-  # Use 'rake compile' if you want to re-compile for development.
-  task :default => :spec
 else
-  Rake::ExtensionTask.new( 'fast_blank', gem )
+  require 'rake/extensiontask'
+
+  Rake::ExtensionTask.new('sin_fast_blank', gemspec)
 end
 
-Gem::PackageTask.new gem  do |pkg|
-  pkg.need_zip = pkg.need_tar = false
+Gem::PackageTask.new(gemspec)
+
+Rake::TestTask.new(:test) do |task|
+  task.pattern = 'test/**/test_*.rb'
 end
 
-RSpec::Core::RakeTask.new :spec  do |spec|
-  spec.pattern = 'spec/**/*_spec.rb'
+RuboCop::RakeTask.new
+
+task benchmark: [:compile] do
+  require_relative 'script/sin_fast_blank_benchmark'
+
+  SinFastBlankBenchmark.execute
 end
-
-task :default => [:compile, :spec]
-
-task :bench => [:compile] do
-  exec './benchmark'
-end
-
