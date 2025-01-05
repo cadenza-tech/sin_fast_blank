@@ -1,146 +1,208 @@
-### `String#blank?` Ruby Extension
+# SinFastBlank
 
-[![Gem Version](https://badge.fury.io/rb/fast_blank.svg)](http://badge.fury.io/rb/fast_blank) [![Build Status](https://github.com/SamSaffron/fast_blank/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/SamSaffron/fast_blank/actions/workflows/test.yml)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/cadenza-tech/sin_fast_blank/blob/main/LICENSE.txt) [![tag](https://img.shields.io/github/tag/cadenza-tech/sin_fast_blank.svg?logo=github&color=2EBC4F)](https://github.com/cadenza-tech/sin_fast_blank/blob/main/CHANGELOG.md) [![release](https://github.com/cadenza-tech/sin_fast_blank/actions/workflows/release.yml/badge.svg)](https://github.com/cadenza-tech/sin_fast_blank/actions?query=workflow%3Arelease) [![test](https://github.com/cadenza-tech/sin_fast_blank/actions/workflows/test.yml/badge.svg)](https://github.com/cadenza-tech/sin_fast_blank/actions?query=workflow%3Atest) [![lint](https://github.com/cadenza-tech/sin_fast_blank/actions/workflows/lint.yml/badge.svg)](https://github.com/cadenza-tech/sin_fast_blank/actions?query=workflow%3Alint)
 
-`fast_blank` is a simple C extension which provides a fast implementation of [Active Support's `String#blank?` method](http://api.rubyonrails.org/classes/String.html#method-i-blank-3F).
+Ruby extension library for fast blank string checking.
 
-### How do you use it?
+Forked from [FastBlank](https://github.com/SamSaffron/fast_blank).
 
-    require 'fast_blank'
+- [Installation](#installation)
+- [Usage](#usage)
+  - [String#blank\_as?](#stringblank_as)
+  - [String#blank?](#stringblank)
+- [Benchmark](#benchmark)
+- [Changelog](#changelog)
+- [Contributing](#contributing)
+- [License](#license)
+- [Code of Conduct](#code-of-conduct)
+- [Sponsor](#sponsor)
 
-or add it to your Bundler Gemfile
+## Installation
 
-    gem 'fast_blank'
+Install the gem and add to the application's Gemfile by executing:
 
-### How fast is "Fast"?
-
-About 1.2–20x faster than Active Support on my machine (your mileage my vary, depends on string length):
-
+```bash
+bundle add sin_fast_blank
 ```
+
+If bundler is not being used to manage dependencies, install the gem by executing:
+
+```bash
+gem install sin_fast_blank
+```
+
+# Usage
+
+## String#blank_as?
+
+FastBlank's String#blank_as? is compatible with ActiveSupport's String#blank?.
+
+```ruby
+require 'sin_fast_blank'
+
+''.blank_as? # => true
+' '.blank_as? # => true
+'　'.blank_as? # => true
+"\t".blank_as? # => true
+"\r".blank_as? # => true
+"\n".blank_as? # => true
+"\r\n".blank_as? # => true
+"\r\n\v\f\r\s\t".blank_as? # => true
+'abc'.blank_as? # => false
+' abc '.blank_as? # => false
+```
+
+## String#blank?
+
+```ruby
+require 'sin_fast_blank'
+
+''.blank? # => true
+' '.blank? # => true
+"\t".blank? # => true
+"\r".blank? # => true
+"\n".blank? # => true
+"\r\n".blank? # => true
+"\r\n\v\f\r\s\t".blank? # => true
+'abc'.blank? # => false
+' abc '.blank? # => false
+```
+
+## Benchmark
+
+FastBlank's String#blank_as? is about 1.2-3x faster than ActiveSupport's String#blank? with Ruby 3.4 on Apple Silicon Mac.
+
+```bash
 $ bundle exec ./benchmark
 
-================== Test String Length: 0 ==================
+======================== Benchmark String Length: 0 ========================
+Warming up --------------------------------------
+ FastBlank-blank_as?     3.875M i/100ms
+    FastBlank-blank?     3.157M i/100ms
+ActiveSupport-blank?     3.156M i/100ms
+    Scratch-blank_a?   327.875k i/100ms
+    Scratch-blank_b?     3.157M i/100ms
 Calculating -------------------------------------
-          Fast Blank   225.251k i/100ms
-  Fast ActiveSupport   225.676k i/100ms
-          Slow Blank   110.934k i/100ms
-      New Slow Blank   221.792k i/100ms
--------------------------------------------------
-          Fast Blank     29.673M (± 2.7%) i/s -    148.215M
-  Fast ActiveSupport     28.249M (± 3.5%) i/s -    141.048M
-          Slow Blank      2.158M (± 3.3%) i/s -     10.872M
-      New Slow Blank     23.558M (± 3.2%) i/s -    117.772M
+ FastBlank-blank_as?     39.521M (± 0.7%) i/s   (25.30 ns/i) -    197.604M in   5.000221s
+    FastBlank-blank?     31.564M (± 0.5%) i/s   (31.68 ns/i) -    157.863M in   5.001518s
+ActiveSupport-blank?     31.500M (± 1.1%) i/s   (31.75 ns/i) -    157.820M in   5.010796s
+    Scratch-blank_a?      3.202M (± 2.2%) i/s  (312.33 ns/i) -     16.066M in   5.020372s
+    Scratch-blank_b?     31.553M (± 0.6%) i/s   (31.69 ns/i) -    157.835M in   5.002410s
 
 Comparison:
-          Fast Blank: 29673200.1 i/s
-  Fast ActiveSupport: 28248894.5 i/s - 1.05x slower
-      New Slow Blank: 23557900.0 i/s - 1.26x slower
-          Slow Blank:  2157787.7 i/s - 13.75x slower
+ FastBlank-blank_as?: 39521076.3 i/s
+    FastBlank-blank?: 31564043.8 i/s - 1.25x  slower
+    Scratch-blank_b?: 31552753.4 i/s - 1.25x  slower
+ActiveSupport-blank?: 31500130.6 i/s - 1.25x  slower
+    Scratch-blank_a?:  3201765.5 i/s - 12.34x  slower
 
 
-================== Test String Length: 6 ==================
+======================== Benchmark String Length: 8 ========================
+Warming up --------------------------------------
+ FastBlank-blank_as?     1.722M i/100ms
+    FastBlank-blank?     1.000M i/100ms
+ActiveSupport-blank?   999.986k i/100ms
+    Scratch-blank_a?   378.121k i/100ms
+    Scratch-blank_b?   609.164k i/100ms
 Calculating -------------------------------------
-          Fast Blank   201.185k i/100ms
-  Fast ActiveSupport   205.076k i/100ms
-          Slow Blank   102.061k i/100ms
-      New Slow Blank   123.087k i/100ms
--------------------------------------------------
-          Fast Blank     13.894M (± 2.3%) i/s -     69.409M
-  Fast ActiveSupport     14.627M (± 3.5%) i/s -     73.212M
-          Slow Blank      1.943M (± 2.3%) i/s -      9.798M
-      New Slow Blank      2.796M (± 1.8%) i/s -     14.032M
+ FastBlank-blank_as?     17.203M (± 0.4%) i/s   (58.13 ns/i) -     86.110M in   5.005514s
+    FastBlank-blank?      9.979M (± 0.7%) i/s  (100.21 ns/i) -     50.022M in   5.012826s
+ActiveSupport-blank?      9.974M (± 1.2%) i/s  (100.26 ns/i) -     49.999M in   5.013807s
+    Scratch-blank_a?      3.835M (± 1.5%) i/s  (260.73 ns/i) -     19.284M in   5.029084s
+    Scratch-blank_b?      6.012M (± 3.2%) i/s  (166.34 ns/i) -     30.458M in   5.071787s
 
 Comparison:
-  Fast ActiveSupport: 14627063.7 i/s
-          Fast Blank: 13893631.2 i/s - 1.05x slower
-      New Slow Blank:  2795783.3 i/s - 5.23x slower
-          Slow Blank:  1943025.9 i/s - 7.53x slower
+ FastBlank-blank_as?: 17203216.7 i/s
+    FastBlank-blank?:  9979246.8 i/s - 1.72x  slower
+ActiveSupport-blank?:  9973883.6 i/s - 1.72x  slower
+    Scratch-blank_b?:  6011697.6 i/s - 2.86x  slower
+    Scratch-blank_a?:  3835344.6 i/s - 4.49x  slower
 
 
-================== Test String Length: 14 ==================
+======================== Benchmark String Length: 11 ========================
+Warming up --------------------------------------
+ FastBlank-blank_as?     3.669M i/100ms
+    FastBlank-blank?     1.139M i/100ms
+ActiveSupport-blank?     1.139M i/100ms
+    Scratch-blank_a?   676.009k i/100ms
+    Scratch-blank_b?   331.040k i/100ms
 Calculating -------------------------------------
-          Fast Blank   220.004k i/100ms
-  Fast ActiveSupport   219.716k i/100ms
-          Slow Blank   147.399k i/100ms
-      New Slow Blank   106.651k i/100ms
--------------------------------------------------
-          Fast Blank     24.949M (± 3.0%) i/s -    124.742M
-  Fast ActiveSupport     24.491M (± 3.3%) i/s -    122.382M
-          Slow Blank      4.292M (± 1.6%) i/s -     21.520M
-      New Slow Blank      2.115M (± 2.4%) i/s -     10.665M
+ FastBlank-blank_as?     36.983M (± 0.5%) i/s   (27.04 ns/i) -    187.122M in   5.059876s
+    FastBlank-blank?     11.255M (± 4.8%) i/s   (88.85 ns/i) -     56.932M in   5.075337s
+ActiveSupport-blank?     11.295M (± 1.0%) i/s   (88.54 ns/i) -     56.926M in   5.040663s
+    Scratch-blank_a?      6.596M (± 3.0%) i/s  (151.61 ns/i) -     33.124M in   5.026658s
+    Scratch-blank_b?      3.323M (± 1.7%) i/s  (300.91 ns/i) -     16.883M in   5.081642s
 
 Comparison:
-          Fast Blank: 24948558.8 i/s
-  Fast ActiveSupport: 24491245.1 i/s - 1.02x slower
-          Slow Blank:  4292490.5 i/s - 5.81x slower
-      New Slow Blank:  2115097.6 i/s - 11.80x slower
+ FastBlank-blank_as?: 36982589.0 i/s
+ActiveSupport-blank?: 11294533.9 i/s - 3.27x  slower
+    FastBlank-blank?: 11254762.4 i/s - 3.29x  slower
+    Scratch-blank_a?:  6595961.9 i/s - 5.61x  slower
+    Scratch-blank_b?:  3323306.3 i/s - 11.13x  slower
 
 
-================== Test String Length: 24 ==================
+======================== Benchmark String Length: 15 ========================
+Warming up --------------------------------------
+ FastBlank-blank_as?     2.363M i/100ms
+    FastBlank-blank?   916.697k i/100ms
+ActiveSupport-blank?   912.457k i/100ms
+    Scratch-blank_a?   589.180k i/100ms
+    Scratch-blank_b?   350.303k i/100ms
 Calculating -------------------------------------
-          Fast Blank   206.555k i/100ms
-  Fast ActiveSupport   208.513k i/100ms
-          Slow Blank   137.733k i/100ms
-      New Slow Blank   101.215k i/100ms
--------------------------------------------------
-          Fast Blank     16.761M (± 2.7%) i/s -     83.861M
-  Fast ActiveSupport     17.710M (± 3.2%) i/s -     88.618M
-          Slow Blank      3.744M (± 2.0%) i/s -     18.732M
-      New Slow Blank      1.962M (± 2.7%) i/s -      9.818M
+ FastBlank-blank_as?     23.967M (± 0.7%) i/s   (41.72 ns/i) -    120.525M in   5.029052s
+    FastBlank-blank?      9.123M (± 1.0%) i/s  (109.61 ns/i) -     45.835M in   5.024689s
+ActiveSupport-blank?      9.075M (± 0.8%) i/s  (110.20 ns/i) -     45.623M in   5.027882s
+    Scratch-blank_a?      5.855M (± 1.9%) i/s  (170.78 ns/i) -     29.459M in   5.032877s
+    Scratch-blank_b?      3.462M (± 1.6%) i/s  (288.89 ns/i) -     17.515M in   5.061190s
 
 Comparison:
-  Fast ActiveSupport: 17709936.5 i/s
-          Fast Blank: 16760839.7 i/s - 1.06x slower
-          Slow Blank:  3744048.4 i/s - 4.73x slower
-      New Slow Blank:  1961831.1 i/s - 9.03x slower
+ FastBlank-blank_as?: 23966769.3 i/s
+    FastBlank-blank?:  9122861.7 i/s - 2.63x  slower
+ActiveSupport-blank?:  9074573.7 i/s - 2.64x  slower
+    Scratch-blank_a?:  5855362.3 i/s - 4.09x  slower
+    Scratch-blank_b?:  3461525.5 i/s - 6.92x  slower
 
 
-================== Test String Length: 136 ==================
+======================== Benchmark String Length: 127 ========================
+Warming up --------------------------------------
+ FastBlank-blank_as?     2.371M i/100ms
+    FastBlank-blank?   917.465k i/100ms
+ActiveSupport-blank?   917.407k i/100ms
+    Scratch-blank_a?   595.119k i/100ms
+    Scratch-blank_b?   349.548k i/100ms
 Calculating -------------------------------------
-          Fast Blank   201.772k i/100ms
-  Fast ActiveSupport   189.120k i/100ms
-          Slow Blank   129.439k i/100ms
-      New Slow Blank    90.677k i/100ms
--------------------------------------------------
-          Fast Blank     16.718M (± 2.8%) i/s -     83.534M
-  Fast ActiveSupport     17.617M (± 3.6%) i/s -     87.941M
-          Slow Blank      3.725M (± 3.0%) i/s -     18.639M
-      New Slow Blank      1.940M (± 4.8%) i/s -      9.702M
+ FastBlank-blank_as?     24.013M (± 0.6%) i/s   (41.64 ns/i) -    120.900M in   5.034924s
+    FastBlank-blank?      9.156M (± 0.7%) i/s  (109.22 ns/i) -     45.873M in   5.010639s
+ActiveSupport-blank?      9.127M (± 1.6%) i/s  (109.57 ns/i) -     45.870M in   5.027384s
+    Scratch-blank_a?      5.823M (± 2.3%) i/s  (171.74 ns/i) -     29.161M in   5.010703s
+    Scratch-blank_b?      3.491M (± 5.6%) i/s  (286.46 ns/i) -     17.477M in   5.027516s
 
 Comparison:
-  Fast ActiveSupport: 17616782.1 i/s
-          Fast Blank: 16718307.8 i/s - 1.05x slower
-          Slow Blank:  3725097.6 i/s - 4.73x slower
-      New Slow Blank:  1940271.2 i/s - 9.08x slower
-
-
+ FastBlank-blank_as?: 24013203.9 i/s
+    FastBlank-blank?:  9155676.4 i/s - 2.62x  slower
+ActiveSupport-blank?:  9126665.5 i/s - 2.63x  slower
+    Scratch-blank_a?:  5822794.3 i/s - 4.12x  slower
+    Scratch-blank_b?:  3490840.0 i/s - 6.88x  slower
 ```
 
 Additionally, this gem allocates no strings during the test, making it less of a GC burden.
 
-### Compatibility note:
+## Changelog
 
-`fast_blank` supports MRI Ruby 1.9.3, 2.0, 2.1, and 2.2, as well as Rubinius 2.x. Earlier versions of MRI are untested.
+See [CHANGELOG.md](https://github.com/cadenza-tech/sin_fast_blank/blob/main/CHANGELOG.md).
 
-`fast_blank` implements `String#blank?` as MRI would have implemented it, meaning it has 100% parity with `String#strip.length == 0`.
+## Contributing
 
-Active Support's version also considers Unicode spaces.  For example, `"\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u202F\u205F\u3000".blank?` is true in Active Support even though `fast_blank` would treat it as *not* blank.  Therefore, `fast_blank` also provides `blank_as?` which is a 100%-compatible Active Support `blank?` replacement.
+Bug reports and pull requests are welcome on GitHub at https://github.com/cadenza-tech/sin_fast_blank. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/cadenza-tech/sin_fast_blank/blob/main/CODE_OF_CONDUCT.md).
 
-### Credits
+## License
 
-* Author: Sam Saffron (sam.saffron@gmail.com)
-* https://github.com/SamSaffron/fast_blank
-* License: MIT
-* Gem template based on [CodeMonkeySteve/fast_xor](https://github.com/CodeMonkeySteve/fast_xor)
+The gem is available as open source under the terms of the [MIT License](https://github.com/cadenza-tech/sin_fast_blank/blob/main/LICENSE.txt).
 
-### Change log:
+## Code of Conduct
 
-1.0.1:
-  - Minor, avoid warnings if redefining blank?
+Everyone interacting in the SinFastBlank project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/cadenza-tech/sin_fast_blank/blob/main/CODE_OF_CONDUCT.md).
 
-1.0.0:
-  - Adds Ruby 2.2 support ([@tjschuck](https://github.com/tjschuck) — [#9](https://github.com/SamSaffron/fast_blank/pull/9))
+## Sponsor
 
-0.0.2:
-  - Removed rake dependency ([@tmm1](https://github.com/tmm1) — [#2](https://github.com/SamSaffron/fast_blank/pull/2))
-  - Unrolled internal loop to improve perf ([@tmm1](https://github.com/tmm1) — [#2](https://github.com/SamSaffron/fast_blank/pull/2))
+You can sponsor this project on [Patreon](https://patreon.com/CadenzaTech).
