@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.0.0] - 2025-1-5
+## [2.0.0] - 2025-1-6
 
 - Refactor: Improve implementation
 - Test: Improve tests
