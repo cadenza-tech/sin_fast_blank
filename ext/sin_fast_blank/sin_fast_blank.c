@@ -3,22 +3,18 @@
 
 #define STR_ENC_GET(str) rb_enc_from_index(ENCODING_GET(str))
 
-static VALUE
-rb_str_blank_as(VALUE str)
-{
-  rb_encoding *enc;
-  char *s, *e;
+static VALUE rb_str_blank_as(VALUE str) {
+  char *ptr = RSTRING_PTR(str);
+  if (!ptr || RSTRING_LEN(str) == 0) return Qtrue;
 
-  enc = STR_ENC_GET(str);
-  s = RSTRING_PTR(str);
-  if (!s || RSTRING_LEN(str) == 0) return Qtrue;
+  char *end = RSTRING_END(str);
+  rb_encoding *enc = STR_ENC_GET(str);
 
-  e = RSTRING_END(str);
-  while (s < e) {
-    int n;
-    unsigned int cc = rb_enc_codepoint_len(s, e, &n, enc);
+  while (ptr < end) {
+    int len;
+    unsigned int codepoint = rb_enc_codepoint_len(ptr, end, &len, enc);
 
-    switch (cc) {
+    switch (codepoint) {
       case 9:
       case 0xa:
       case 0xb:
@@ -44,39 +40,36 @@ rb_str_blank_as(VALUE str)
       case 0x202f:
       case 0x205f:
       case 0x3000:
-          break;
+        break;
       default:
-          return Qfalse;
+        return Qfalse;
     }
-    s += n;
+
+    ptr += len;
   }
+
   return Qtrue;
 }
 
-static VALUE
-rb_str_blank(VALUE str)
-{
-  rb_encoding *enc;
-  char *s, *e;
+static VALUE rb_str_blank(VALUE str) {
+  char *ptr = RSTRING_PTR(str);
+  if (!ptr || RSTRING_LEN(str) == 0) return Qtrue;
 
-  enc = STR_ENC_GET(str);
-  s = RSTRING_PTR(str);
-  if (!s || RSTRING_LEN(str) == 0) return Qtrue;
+  char *end = RSTRING_END(str);
+  rb_encoding *enc = STR_ENC_GET(str);
+  while (ptr < end) {
+    int len;
+    unsigned int codepoint = rb_enc_codepoint_len(ptr, end, &len, enc);
 
-  e = RSTRING_END(str);
-  while (s < e) {
-    int n;
-    unsigned int cc = rb_enc_codepoint_len(s, e, &n, enc);
+    if (!rb_isspace(codepoint) && codepoint != 0) return Qfalse;
 
-    if (!rb_isspace(cc) && cc != 0) return Qfalse;
-    s += n;
+    ptr += len;
   }
+
   return Qtrue;
 }
 
-
-void Init_sin_fast_blank( void )
-{
+void Init_sin_fast_blank(void) {
   rb_define_method(rb_cString, "blank?", rb_str_blank, 0);
   rb_define_method(rb_cString, "blank_as?", rb_str_blank_as, 0);
 }

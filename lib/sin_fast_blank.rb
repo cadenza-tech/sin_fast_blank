@@ -7,7 +7,7 @@ end
 
 case RUBY_ENGINE
 when 'jruby'
-  require 'sin_fast_blank.jar'
+  require 'sin_fast_blank/sin_fast_blank.jar'
 
   JRuby::Util.load_ext('sin_fast_blank.SinFastBlankLibrary')
 else
