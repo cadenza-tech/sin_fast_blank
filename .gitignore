@@ -35,8 +35,8 @@ Trash
 _yardoc/
 coverage/
 doc/
-lib/*.bundle
-lib/*.so
+lib/**/*.bundle
+lib/**/*.so
 lib/bundler/man/
 pkg/
 rdoc/
