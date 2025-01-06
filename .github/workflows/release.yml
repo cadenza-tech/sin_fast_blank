@@ -20,6 +20,7 @@ jobs:
         uses: rubygems/release-gem@v1
   release-ruby:
     runs-on: ubuntu-latest
+    needs: release-java
     steps:
       - uses: actions/checkout@v4
       - name: Set up Ruby
