@@ -70,7 +70,7 @@ require 'sin_fast_blank'
 
 ## Benchmark
 
-FastBlank's String#blank_as? is about 1.2-3x faster than ActiveSupport's String#blank? with Ruby 3.4 on Apple Silicon Mac.
+FastBlank's String#blank_as? is about 1.2-3.3x faster than ActiveSupport's String#blank? with Ruby 3.4 on Apple Silicon Mac.
 
 ```bash
 $ bundle exec rake benchmark
