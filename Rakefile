@@ -18,7 +18,9 @@ if RUBY_ENGINE == 'jruby'
 else
   require 'rake/extensiontask'
 
-  Rake::ExtensionTask.new('sin_fast_blank', gemspec)
+  Rake::ExtensionTask.new('sin_fast_blank', gemspec) do |task|
+    task.lib_dir = 'lib/sin_fast_blank'
+  end
 end
 
 Gem::PackageTask.new(gemspec)
