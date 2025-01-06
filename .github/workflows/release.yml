@@ -1,26 +1,26 @@
 name: Release
 on:
   push:
-    tags:
-      - 'v*'
+    # tags:
+    #   - 'v*'
 permissions:
   contents: read
   id-token: write
 jobs:
-  release-java:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: jruby-9.3
-          bundler-cache: true
-      - name: Release to RubyGems
-        uses: rubygems/release-gem@v1
+  # release-java:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Set up Ruby
+  #       uses: ruby/setup-ruby@v1
+  #       with:
+  #         ruby-version: jruby-9.3
+  #         bundler-cache: true
+  #     - name: Release to RubyGems
+  #       uses: rubygems/release-gem@v1
   release-ruby:
     runs-on: ubuntu-latest
-    needs: release-java
+    # needs: release-java
     steps:
       - uses: actions/checkout@v4
       - name: Set up Ruby
