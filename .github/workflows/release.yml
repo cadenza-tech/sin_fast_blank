@@ -7,24 +7,25 @@ permissions:
   contents: read
   id-token: write
 jobs:
-  release:
+  release-java:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        ruby-version:
-          - 'jruby-9.3'
-          - '3'
     steps:
       - uses: actions/checkout@v4
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: ${{ matrix.ruby-version }}
+          ruby-version: jruby-9.3
           bundler-cache: true
-      - name: Sleep
-        if: matrix.ruby-version == '3'
-        shell: bash -xe {0}
-        run: sleep 30
+      - name: Release to RubyGems
+        uses: rubygems/release-gem@v1
+  release-ruby:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3
+          bundler-cache: true
       - name: Release to RubyGems
         uses: rubygems/release-gem@v1
