@@ -10,7 +10,7 @@ on:
 permissions:
   contents: read
 jobs:
-  test:
+  test-ubuntu:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -34,6 +34,47 @@ jobs:
           - 'truffleruby+graalvm-22'
           - 'truffleruby+graalvm-23'
           - 'truffleruby+graalvm-24'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+          bundler-cache: true
+      - name: Run compile
+        run: bundle exec rake compile
+      - name: Run tests
+        run: bundle exec rake test
+  test-macos:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby-version:
+          - '3.4'
+          - 'jruby-9.4'
+          - 'truffleruby-24'
+          - 'truffleruby+graalvm-24'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+          bundler-cache: true
+      - name: Run compile
+        run: bundle exec rake compile
+      - name: Run tests
+        run: bundle exec rake test
+  test-windows:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby-version:
+          - 'mingw'
+          - 'mswin'
+          - 'ucrt'
     steps:
       - uses: actions/checkout@v4
       - name: Set up Ruby
