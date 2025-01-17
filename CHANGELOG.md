@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.1.0] - 2025-1-17
+
+- Other: Improve gemspec
+- Other: Improve test CI
+
 ## [2.0.0] - 2025-1-6
 
 - Refactor: Improve implementation
