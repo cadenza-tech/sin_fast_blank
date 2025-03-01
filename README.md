@@ -35,7 +35,7 @@ gem install sin_fast_blank
 
 ## String#blank_as?
 
-FastBlank's String#blank_as? is compatible with ActiveSupport's String#blank?.
+SinFastBlank's String#blank_as? is compatible with ActiveSupport's String#blank?.
 
 ```ruby
 require 'sin_fast_blank'
