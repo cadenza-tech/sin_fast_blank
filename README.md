@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/github/license/cadenza-tech/sin_fast_blank?label=License&labelColor=343B42&color=blue)](https://github.com/cadenza-tech/sin_fast_blank/blob/main/LICENSE.txt) [![Tag](https://img.shields.io/github/tag/cadenza-tech/sin_fast_blank?label=Tag&logo=github&labelColor=343B42&color=2EBC4F)](https://github.com/cadenza-tech/sin_fast_blank/blob/main/CHANGELOG.md) [![Release](https://github.com/cadenza-tech/sin_fast_blank/actions/workflows/release.yml/badge.svg)](https://github.com/cadenza-tech/sin_fast_blank/actions?query=workflow%3Arelease) [![Test](https://github.com/cadenza-tech/sin_fast_blank/actions/workflows/test.yml/badge.svg)](https://github.com/cadenza-tech/sin_fast_blank/actions?query=workflow%3Atest) [![Lint](https://github.com/cadenza-tech/sin_fast_blank/actions/workflows/lint.yml/badge.svg)](https://github.com/cadenza-tech/sin_fast_blank/actions?query=workflow%3Alint)
 
-Ruby extension library for fast blank string checking.
+Ruby extension library for up to 2x faster blank string checking than fast_blank gem.
 
 Forked from [FastBlank](https://github.com/SamSaffron/fast_blank).
 
@@ -70,122 +70,113 @@ require 'sin_fast_blank'
 
 ## Benchmark
 
-FastBlank's String#blank_as? is about 1.2-3.3x faster than ActiveSupport's String#blank? with Ruby 3.4 on Apple Silicon Mac.
+SinFastBlank's String#blank_as? is about 1.0-2.2x faster than FastBlank's String#blank? and about 1.2-4.5x faster than ActiveSupport's String#blank?.
+
+Additionally, this gem allocates no strings during the check, making it less of a burden on the GC.
 
 ```bash
 $ bundle exec rake benchmark
 
-======================== Benchmark String Length: 0 ========================
-Warming up --------------------------------------
- FastBlank-blank_as?     3.875M i/100ms
-    FastBlank-blank?     3.157M i/100ms
-ActiveSupport-blank?     3.156M i/100ms
-    Scratch-blank_a?   327.875k i/100ms
-    Scratch-blank_b?     3.157M i/100ms
-Calculating -------------------------------------
- FastBlank-blank_as?     39.521M (± 0.7%) i/s   (25.30 ns/i) -    197.604M in   5.000221s
-    FastBlank-blank?     31.564M (± 0.5%) i/s   (31.68 ns/i) -    157.863M in   5.001518s
-ActiveSupport-blank?     31.500M (± 1.1%) i/s   (31.75 ns/i) -    157.820M in   5.010796s
-    Scratch-blank_a?      3.202M (± 2.2%) i/s  (312.33 ns/i) -     16.066M in   5.020372s
-    Scratch-blank_b?     31.553M (± 0.6%) i/s   (31.69 ns/i) -    157.835M in   5.002410s
++----------------------------------------------------------------+
+|              Benchmark Result (String Length: 0)               |
++--------------------------+----------------------+--------------+
+| Name                     | Iteration Per Second | Speed Ratio  |
++--------------------------+----------------------+--------------+
+| SinFastBlank - blank?    | 22966900.2           | -            |
+| SinFastBlank - blank_as? | 22854446.4           | -            |
+| FastBlank - blank_as?    | 22728273.3           | -            |
+| FastBlank - blank?       | 22686375.5           | -            |
+| Scratch - blank_e?       | 18352060.0           | 1.3x slower  |
+| Scratch - blank_h?       | 18333765.0           | 1.3x slower  |
+| ActiveSupport - blank?   | 18281624.8           | 1.3x slower  |
+| Scratch - blank_f?       | 18275684.3           | 1.3x slower  |
+| Scratch - blank_g?       | 18258123.1           | 1.3x slower  |
+| Scratch - blank_a?       | 9898715.2            | 2.3x slower  |
+| Scratch - blank_b?       | 4611313.1            | 5.0x slower  |
+| Scratch - blank_c?       | 4596275.0            | 5.0x slower  |
+| Scratch - blank_d?       | 1988432.0            | 11.6x slower |
++--------------------------+----------------------+--------------+
 
-Comparison:
- FastBlank-blank_as?: 39521076.3 i/s
-    FastBlank-blank?: 31564043.8 i/s - 1.25x  slower
-    Scratch-blank_b?: 31552753.4 i/s - 1.25x  slower
-ActiveSupport-blank?: 31500130.6 i/s - 1.25x  slower
-    Scratch-blank_a?:  3201765.5 i/s - 12.34x  slower
++----------------------------------------------------------------+
+|              Benchmark Result (String Length: 8)               |
++--------------------------+----------------------+--------------+
+| Name                     | Iteration Per Second | Speed Ratio  |
++--------------------------+----------------------+--------------+
+| SinFastBlank - blank_as? | 20957745.3           | -            |
+| SinFastBlank - blank?    | 20490043.2           | -            |
+| FastBlank - blank?       | 10437379.4           | 2.0x slower  |
+| FastBlank - blank_as?    | 9600563.9            | 2.2x slower  |
+| Scratch - blank_c?       | 7327192.6            | 2.9x slower  |
+| ActiveSupport - blank?   | 5787065.3            | 3.6x slower  |
+| Scratch - blank_g?       | 5773144.0            | 3.6x slower  |
+| Scratch - blank_b?       | 4031677.5            | 5.2x slower  |
+| Scratch - blank_f?       | 3570708.1            | 5.9x slower  |
+| Scratch - blank_a?       | 3252559.0            | 6.4x slower  |
+| Scratch - blank_e?       | 2915548.8            | 7.2x slower  |
+| Scratch - blank_d?       | 2274928.0            | 9.2x slower  |
+| Scratch - blank_h?       | 2090389.5            | 10.0x slower |
++--------------------------+----------------------+--------------+
 
++----------------------------------------------------------------+
+|              Benchmark Result (String Length: 71)              |
++--------------------------+----------------------+--------------+
+| Name                     | Iteration Per Second | Speed Ratio  |
++--------------------------+----------------------+--------------+
+| SinFastBlank - blank?    | 22707066.8           | -            |
+| SinFastBlank - blank_as? | 21979788.3           | -            |
+| FastBlank - blank?       | 21560180.9           | -            |
+| FastBlank - blank_as?    | 21483377.6           | -            |
+| Scratch - blank_a?       | 10495408.2           | 2.2x slower  |
+| Scratch - blank_c?       | 8322278.6            | 2.7x slower  |
+| Scratch - blank_e?       | 7454723.4            | 3.0x slower  |
+| ActiveSupport - blank?   | 6519590.5            | 3.5x slower  |
+| Scratch - blank_g?       | 6511631.5            | 3.5x slower  |
+| Scratch - blank_d?       | 3984466.0            | 5.7x slower  |
+| Scratch - blank_h?       | 3460504.5            | 6.6x slower  |
+| Scratch - blank_b?       | 2260423.6            | 10.0x slower |
+| Scratch - blank_f?       | 2043691.3            | 11.1x slower |
++--------------------------+----------------------+--------------+
 
-======================== Benchmark String Length: 8 ========================
-Warming up --------------------------------------
- FastBlank-blank_as?     1.722M i/100ms
-    FastBlank-blank?     1.000M i/100ms
-ActiveSupport-blank?   999.986k i/100ms
-    Scratch-blank_a?   378.121k i/100ms
-    Scratch-blank_b?   609.164k i/100ms
-Calculating -------------------------------------
- FastBlank-blank_as?     17.203M (± 0.4%) i/s   (58.13 ns/i) -     86.110M in   5.005514s
-    FastBlank-blank?      9.979M (± 0.7%) i/s  (100.21 ns/i) -     50.022M in   5.012826s
-ActiveSupport-blank?      9.974M (± 1.2%) i/s  (100.26 ns/i) -     49.999M in   5.013807s
-    Scratch-blank_a?      3.835M (± 1.5%) i/s  (260.73 ns/i) -     19.284M in   5.029084s
-    Scratch-blank_b?      6.012M (± 3.2%) i/s  (166.34 ns/i) -     30.458M in   5.071787s
++----------------------------------------------------------------+
+|             Benchmark Result (String Length: 127)              |
++--------------------------+----------------------+--------------+
+| Name                     | Iteration Per Second | Speed Ratio  |
++--------------------------+----------------------+--------------+
+| SinFastBlank - blank_as? | 21512568.0           | -            |
+| SinFastBlank - blank?    | 21354195.5           | -            |
+| FastBlank - blank?       | 14097188.9           | 1.5x slower  |
+| FastBlank - blank_as?    | 13963065.1           | 1.5x slower  |
+| Scratch - blank_c?       | 6460123.6            | 3.3x slower  |
+| ActiveSupport - blank?   | 5304695.5            | 4.1x slower  |
+| Scratch - blank_g?       | 5159539.0            | 4.2x slower  |
+| Scratch - blank_a?       | 5106928.3            | 4.2x slower  |
+| Scratch - blank_e?       | 4344099.2            | 5.0x slower  |
+| Scratch - blank_d?       | 3516908.8            | 6.1x slower  |
+| Scratch - blank_h?       | 3080467.6            | 7.0x slower  |
+| Scratch - blank_b?       | 2380807.8            | 9.0x slower  |
+| Scratch - blank_f?       | 2144800.2            | 10.0x slower |
++--------------------------+----------------------+--------------+
 
-Comparison:
- FastBlank-blank_as?: 17203216.7 i/s
-    FastBlank-blank?:  9979246.8 i/s - 1.72x  slower
-ActiveSupport-blank?:  9973883.6 i/s - 1.72x  slower
-    Scratch-blank_b?:  6011697.6 i/s - 2.86x  slower
-    Scratch-blank_a?:  3835344.6 i/s - 4.49x  slower
-
-
-======================== Benchmark String Length: 11 ========================
-Warming up --------------------------------------
- FastBlank-blank_as?     3.669M i/100ms
-    FastBlank-blank?     1.139M i/100ms
-ActiveSupport-blank?     1.139M i/100ms
-    Scratch-blank_a?   676.009k i/100ms
-    Scratch-blank_b?   331.040k i/100ms
-Calculating -------------------------------------
- FastBlank-blank_as?     36.983M (± 0.5%) i/s   (27.04 ns/i) -    187.122M in   5.059876s
-    FastBlank-blank?     11.255M (± 4.8%) i/s   (88.85 ns/i) -     56.932M in   5.075337s
-ActiveSupport-blank?     11.295M (± 1.0%) i/s   (88.54 ns/i) -     56.926M in   5.040663s
-    Scratch-blank_a?      6.596M (± 3.0%) i/s  (151.61 ns/i) -     33.124M in   5.026658s
-    Scratch-blank_b?      3.323M (± 1.7%) i/s  (300.91 ns/i) -     16.883M in   5.081642s
-
-Comparison:
- FastBlank-blank_as?: 36982589.0 i/s
-ActiveSupport-blank?: 11294533.9 i/s - 3.27x  slower
-    FastBlank-blank?: 11254762.4 i/s - 3.29x  slower
-    Scratch-blank_a?:  6595961.9 i/s - 5.61x  slower
-    Scratch-blank_b?:  3323306.3 i/s - 11.13x  slower
-
-
-======================== Benchmark String Length: 15 ========================
-Warming up --------------------------------------
- FastBlank-blank_as?     2.363M i/100ms
-    FastBlank-blank?   916.697k i/100ms
-ActiveSupport-blank?   912.457k i/100ms
-    Scratch-blank_a?   589.180k i/100ms
-    Scratch-blank_b?   350.303k i/100ms
-Calculating -------------------------------------
- FastBlank-blank_as?     23.967M (± 0.7%) i/s   (41.72 ns/i) -    120.525M in   5.029052s
-    FastBlank-blank?      9.123M (± 1.0%) i/s  (109.61 ns/i) -     45.835M in   5.024689s
-ActiveSupport-blank?      9.075M (± 0.8%) i/s  (110.20 ns/i) -     45.623M in   5.027882s
-    Scratch-blank_a?      5.855M (± 1.9%) i/s  (170.78 ns/i) -     29.459M in   5.032877s
-    Scratch-blank_b?      3.462M (± 1.6%) i/s  (288.89 ns/i) -     17.515M in   5.061190s
-
-Comparison:
- FastBlank-blank_as?: 23966769.3 i/s
-    FastBlank-blank?:  9122861.7 i/s - 2.63x  slower
-ActiveSupport-blank?:  9074573.7 i/s - 2.64x  slower
-    Scratch-blank_a?:  5855362.3 i/s - 4.09x  slower
-    Scratch-blank_b?:  3461525.5 i/s - 6.92x  slower
-
-
-======================== Benchmark String Length: 127 ========================
-Warming up --------------------------------------
- FastBlank-blank_as?     2.371M i/100ms
-    FastBlank-blank?   917.465k i/100ms
-ActiveSupport-blank?   917.407k i/100ms
-    Scratch-blank_a?   595.119k i/100ms
-    Scratch-blank_b?   349.548k i/100ms
-Calculating -------------------------------------
- FastBlank-blank_as?     24.013M (± 0.6%) i/s   (41.64 ns/i) -    120.900M in   5.034924s
-    FastBlank-blank?      9.156M (± 0.7%) i/s  (109.22 ns/i) -     45.873M in   5.010639s
-ActiveSupport-blank?      9.127M (± 1.6%) i/s  (109.57 ns/i) -     45.870M in   5.027384s
-    Scratch-blank_a?      5.823M (± 2.3%) i/s  (171.74 ns/i) -     29.161M in   5.010703s
-    Scratch-blank_b?      3.491M (± 5.6%) i/s  (286.46 ns/i) -     17.477M in   5.027516s
-
-Comparison:
- FastBlank-blank_as?: 24013203.9 i/s
-    FastBlank-blank?:  9155676.4 i/s - 2.62x  slower
-ActiveSupport-blank?:  9126665.5 i/s - 2.63x  slower
-    Scratch-blank_a?:  5822794.3 i/s - 4.12x  slower
-    Scratch-blank_b?:  3490840.0 i/s - 6.88x  slower
++----------------------------------------------------------------+
+|             Benchmark Result (String Length: 238)              |
++--------------------------+----------------------+--------------+
+| Name                     | Iteration Per Second | Speed Ratio  |
++--------------------------+----------------------+--------------+
+| SinFastBlank - blank_as? | 21539464.6           | -            |
+| SinFastBlank - blank?    | 21428913.7           | -            |
+| FastBlank - blank?       | 14208669.1           | 1.5x slower  |
+| FastBlank - blank_as?    | 13947495.7           | 1.5x slower  |
+| Scratch - blank_c?       | 5909689.1            | 3.6x slower  |
+| ActiveSupport - blank?   | 4806411.1            | 4.5x slower  |
+| Scratch - blank_g?       | 4644442.1            | 4.6x slower  |
+| Scratch - blank_a?       | 4532311.2            | 4.8x slower  |
+| Scratch - blank_e?       | 3788223.2            | 5.7x slower  |
+| Scratch - blank_d?       | 3175205.6            | 6.8x slower  |
+| Scratch - blank_h?       | 2800006.5            | 7.7x slower  |
+| Scratch - blank_b?       | 1839252.0            | 11.7x slower |
+| Scratch - blank_f?       | 1612757.1            | 13.4x slower |
++--------------------------+----------------------+--------------+
 ```
-
-Additionally, this gem allocates no strings during the test, making it less of a GC burden.
 
 ## Changelog
 

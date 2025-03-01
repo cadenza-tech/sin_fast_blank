@@ -2,11 +2,9 @@
 
 $VERBOSE = nil
 
-$LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
-
 require 'json'
 require 'benchmark/ips'
-require 'sin_fast_blank'
+require 'active_support/core_ext/object/blank'
 require_relative 'benchmark_strings'
 
 result = {}
@@ -17,15 +15,7 @@ BENCHMARK_STRINGS.each do |string|
   report = Benchmark.ips do |x|
     x.quiet = true
 
-    x.report('SinFastBlank - blank_as?') do |times|
-      i = 0
-      while i < times
-        string.blank_as?
-        i += 1
-      end
-    end
-
-    x.report('SinFastBlank - blank?') do |times|
+    x.report('ActiveSupport - blank?') do |times|
       i = 0
       while i < times
         string.blank?
@@ -39,4 +29,4 @@ BENCHMARK_STRINGS.each do |string|
   end
 end
 
-File.write(File.expand_path('../tmp/sin_fast_blank_benchmark_results.json', __dir__), JSON.pretty_generate(result))
+File.write(File.expand_path('../tmp/activesupport_benchmark_results.json', __dir__), JSON.pretty_generate(result))
