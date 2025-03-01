@@ -70,7 +70,7 @@ require 'sin_fast_blank'
 
 ## Benchmark
 
-SinFastBlank's String#blank_as? is about 1.0-2.2x faster than FastBlank's String#blank? and about 1.2-4.5x faster than ActiveSupport's String#blank?.
+SinFastBlank's String#blank_as? is about 1.0-2.2x faster than FastBlank's String#blank? and about 1.3-4.5x faster than ActiveSupport's String#blank?.
 
 Additionally, this gem allocates no strings during the check, making it less of a burden on the GC.
 
