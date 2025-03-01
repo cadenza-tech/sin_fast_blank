@@ -32,7 +32,11 @@ end
 RuboCop::RakeTask.new
 
 task benchmark: [:compile] do
-  require_relative 'script/sin_fast_blank_benchmark'
+  require_relative 'script/benchmark'
 
-  SinFastBlankBenchmark.execute
+  sh 'ruby script/sin_fast_blank_benchmark.rb'
+  sh 'ruby script/fast_blank_benchmark.rb'
+  sh 'ruby script/activesupport_benchmark.rb'
+  sh 'ruby script/scratch_benchmark.rb'
+  Benchmark.summarize
 end
