@@ -6,10 +6,10 @@ Gem::Specification.new do |spec|
   spec.name = 'sin_fast_blank'
   spec.version = SinFastBlank::VERSION
   spec.description = <<~DESCRIPTION
-    Ruby extension library for fast blank string checking.
+    Ruby extension library for up to 2x faster blank string checking than fast_blank gem.
     Forked from FastBlank.
   DESCRIPTION
-  spec.summary = 'Ruby extension library for fast blank string checking.'
+  spec.summary = 'Ruby extension library for up to 2x faster blank string checking than fast_blank gem.'
   spec.authors = ['Masahiro']
   spec.email = ['watanabe@cadenza-tech.com']
   spec.license = 'MIT'
