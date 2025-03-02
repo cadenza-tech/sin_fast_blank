@@ -34,9 +34,9 @@ RuboCop::RakeTask.new
 task benchmark: [:compile] do
   require_relative 'script/benchmark'
 
-  sh 'ruby script/sin_fast_blank_benchmark.rb'
-  sh 'ruby script/fast_blank_benchmark.rb'
-  sh 'ruby script/activesupport_benchmark.rb'
-  sh 'ruby script/scratch_benchmark.rb'
+  sh 'ruby --yjit script/sin_fast_blank_benchmark.rb'
+  sh 'ruby --yjit script/fast_blank_benchmark.rb'
+  sh 'ruby --yjit script/activesupport_benchmark.rb'
+  sh 'ruby --yjit script/scratch_benchmark.rb'
   Benchmark.summarize
 end
