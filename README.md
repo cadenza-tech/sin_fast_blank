@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/github/license/cadenza-tech/sin_fast_blank?label=License&labelColor=343B42&color=blue)](https://github.com/cadenza-tech/sin_fast_blank/blob/main/LICENSE.txt) [![Tag](https://img.shields.io/github/tag/cadenza-tech/sin_fast_blank?label=Tag&logo=github&labelColor=343B42&color=2EBC4F)](https://github.com/cadenza-tech/sin_fast_blank/blob/main/CHANGELOG.md) [![Release](https://github.com/cadenza-tech/sin_fast_blank/actions/workflows/release.yml/badge.svg)](https://github.com/cadenza-tech/sin_fast_blank/actions?query=workflow%3Arelease) [![Test](https://github.com/cadenza-tech/sin_fast_blank/actions/workflows/test.yml/badge.svg)](https://github.com/cadenza-tech/sin_fast_blank/actions?query=workflow%3Atest) [![Lint](https://github.com/cadenza-tech/sin_fast_blank/actions/workflows/lint.yml/badge.svg)](https://github.com/cadenza-tech/sin_fast_blank/actions?query=workflow%3Alint)
 
-Ruby extension library for up to 2x faster blank string checking than fast_blank gem.
+Ruby extension library for up to 3x faster blank string checking than fast_blank gem.
 
 Forked from [FastBlank](https://github.com/SamSaffron/fast_blank).
 
@@ -31,9 +31,9 @@ If bundler is not being used to manage dependencies, install the gem by executin
 gem install sin_fast_blank
 ```
 
-# Usage
+## Usage
 
-## String#blank_as?
+### String#blank_as?
 
 SinFastBlank's String#blank_as? is compatible with ActiveSupport's String#blank?.
 
@@ -52,7 +52,7 @@ require 'sin_fast_blank'
 ' abc '.blank_as? # => false
 ```
 
-## String#blank?
+### String#blank?
 
 ```ruby
 require 'sin_fast_blank'
@@ -70,7 +70,7 @@ require 'sin_fast_blank'
 
 ## Benchmark
 
-SinFastBlank's String#blank_as? is about 1.0-2.2x faster than FastBlank's String#blank? and about 1.3-4.5x faster than ActiveSupport's String#blank?.
+SinFastBlank's String#blank_as? is about 1.3-3.4x faster than FastBlank's String#blank_as? and about 1.3-10.3x faster than ActiveSupport's String#blank?.
 
 Additionally, this gem allocates no strings during the check, making it less of a burden on the GC.
 
@@ -82,19 +82,19 @@ $ bundle exec rake benchmark
 +--------------------------+----------------------+--------------+
 | Name                     | Iteration Per Second | Speed Ratio  |
 +--------------------------+----------------------+--------------+
-| SinFastBlank - blank?    | 22966900.2           | -            |
-| SinFastBlank - blank_as? | 22854446.4           | -            |
-| FastBlank - blank_as?    | 22728273.3           | -            |
-| FastBlank - blank?       | 22686375.5           | -            |
-| Scratch - blank_e?       | 18352060.0           | 1.3x slower  |
-| Scratch - blank_h?       | 18333765.0           | 1.3x slower  |
-| ActiveSupport - blank?   | 18281624.8           | 1.3x slower  |
-| Scratch - blank_f?       | 18275684.3           | 1.3x slower  |
-| Scratch - blank_g?       | 18258123.1           | 1.3x slower  |
-| Scratch - blank_a?       | 9898715.2            | 2.3x slower  |
-| Scratch - blank_b?       | 4611313.1            | 5.0x slower  |
-| Scratch - blank_c?       | 4596275.0            | 5.0x slower  |
-| Scratch - blank_d?       | 1988432.0            | 11.6x slower |
+| SinFastBlank - blank?    | 220272628.9          | -            |
+| SinFastBlank - blank_as? | 205391581.0          | -            |
+| FastBlank - blank?       | 178296618.1          | 1.2x slower  |
+| Scratch - blank_e?       | 172663191.8          | 1.3x slower  |
+| Scratch - blank_f?       | 172662970.6          | 1.3x slower  |
+| Scratch - blank_h?       | 172627104.3          | 1.3x slower  |
+| ActiveSupport - blank?   | 172593842.6          | 1.3x slower  |
+| Scratch - blank_g?       | 172504440.8          | 1.3x slower  |
+| FastBlank - blank_as?    | 169299495.4          | 1.3x slower  |
+| Scratch - blank_a?       | 24739741.9           | 8.9x slower  |
+| Scratch - blank_c?       | 12145649.0           | 18.1x slower |
+| Scratch - blank_b?       | 11728132.0           | 18.8x slower |
+| Scratch - blank_d?       | 4758017.8            | 46.3x slower |
 +--------------------------+----------------------+--------------+
 
 +----------------------------------------------------------------+
@@ -102,19 +102,19 @@ $ bundle exec rake benchmark
 +--------------------------+----------------------+--------------+
 | Name                     | Iteration Per Second | Speed Ratio  |
 +--------------------------+----------------------+--------------+
-| SinFastBlank - blank_as? | 20957745.3           | -            |
-| SinFastBlank - blank?    | 20490043.2           | -            |
-| FastBlank - blank?       | 10437379.4           | 2.0x slower  |
-| FastBlank - blank_as?    | 9600563.9            | 2.2x slower  |
-| Scratch - blank_c?       | 7327192.6            | 2.9x slower  |
-| ActiveSupport - blank?   | 5787065.3            | 3.6x slower  |
-| Scratch - blank_g?       | 5773144.0            | 3.6x slower  |
-| Scratch - blank_b?       | 4031677.5            | 5.2x slower  |
-| Scratch - blank_f?       | 3570708.1            | 5.9x slower  |
-| Scratch - blank_a?       | 3252559.0            | 6.4x slower  |
-| Scratch - blank_e?       | 2915548.8            | 7.2x slower  |
-| Scratch - blank_d?       | 2274928.0            | 9.2x slower  |
-| Scratch - blank_h?       | 2090389.5            | 10.0x slower |
+| SinFastBlank - blank?    | 99316488.7           | -            |
+| SinFastBlank - blank_as? | 95858683.3           | -            |
+| FastBlank - blank?       | 31945152.5           | 3.1x slower  |
+| FastBlank - blank_as?    | 29010959.4           | 3.4x slower  |
+| Scratch - blank_c?       | 16121006.3           | 6.2x slower  |
+| Scratch - blank_g?       | 15652169.3           | 6.3x slower  |
+| ActiveSupport - blank?   | 15604810.7           | 6.4x slower  |
+| Scratch - blank_b?       | 10805728.3           | 9.2x slower  |
+| Scratch - blank_f?       | 10772269.2           | 9.2x slower  |
+| Scratch - blank_a?       | 6286540.4            | 15.8x slower |
+| Scratch - blank_e?       | 6237519.6            | 15.9x slower |
+| Scratch - blank_d?       | 5259930.5            | 18.9x slower |
+| Scratch - blank_h?       | 5244677.6            | 18.9x slower |
 +--------------------------+----------------------+--------------+
 
 +----------------------------------------------------------------+
@@ -122,19 +122,19 @@ $ bundle exec rake benchmark
 +--------------------------+----------------------+--------------+
 | Name                     | Iteration Per Second | Speed Ratio  |
 +--------------------------+----------------------+--------------+
-| SinFastBlank - blank?    | 22707066.8           | -            |
-| SinFastBlank - blank_as? | 21979788.3           | -            |
-| FastBlank - blank?       | 21560180.9           | -            |
-| FastBlank - blank_as?    | 21483377.6           | -            |
-| Scratch - blank_a?       | 10495408.2           | 2.2x slower  |
-| Scratch - blank_c?       | 8322278.6            | 2.7x slower  |
-| Scratch - blank_e?       | 7454723.4            | 3.0x slower  |
-| ActiveSupport - blank?   | 6519590.5            | 3.5x slower  |
-| Scratch - blank_g?       | 6511631.5            | 3.5x slower  |
-| Scratch - blank_d?       | 3984466.0            | 5.7x slower  |
-| Scratch - blank_h?       | 3460504.5            | 6.6x slower  |
-| Scratch - blank_b?       | 2260423.6            | 10.0x slower |
-| Scratch - blank_f?       | 2043691.3            | 11.1x slower |
+| SinFastBlank - blank?    | 154030295.4          | -            |
+| SinFastBlank - blank_as? | 135556798.4          | 1.1x slower  |
+| FastBlank - blank?       | 113542533.8          | 1.4x slower  |
+| FastBlank - blank_as?    | 105783463.7          | 1.5x slower  |
+| Scratch - blank_a?       | 28002415.5           | 5.5x slower  |
+| Scratch - blank_e?       | 26543347.8           | 5.8x slower  |
+| Scratch - blank_c?       | 18993701.7           | 8.1x slower  |
+| ActiveSupport - blank?   | 18277098.5           | 8.4x slower  |
+| Scratch - blank_g?       | 18209533.8           | 8.5x slower  |
+| Scratch - blank_d?       | 9407379.1            | 16.4x slower |
+| Scratch - blank_h?       | 9384844.3            | 16.4x slower |
+| Scratch - blank_b?       | 5025826.5            | 30.6x slower |
+| Scratch - blank_f?       | 4920626.0            | 31.3x slower |
 +--------------------------+----------------------+--------------+
 
 +----------------------------------------------------------------+
@@ -142,19 +142,19 @@ $ bundle exec rake benchmark
 +--------------------------+----------------------+--------------+
 | Name                     | Iteration Per Second | Speed Ratio  |
 +--------------------------+----------------------+--------------+
-| SinFastBlank - blank_as? | 21512568.0           | -            |
-| SinFastBlank - blank?    | 21354195.5           | -            |
-| FastBlank - blank?       | 14097188.9           | 1.5x slower  |
-| FastBlank - blank_as?    | 13963065.1           | 1.5x slower  |
-| Scratch - blank_c?       | 6460123.6            | 3.3x slower  |
-| ActiveSupport - blank?   | 5304695.5            | 4.1x slower  |
-| Scratch - blank_g?       | 5159539.0            | 4.2x slower  |
-| Scratch - blank_a?       | 5106928.3            | 4.2x slower  |
-| Scratch - blank_e?       | 4344099.2            | 5.0x slower  |
-| Scratch - blank_d?       | 3516908.8            | 6.1x slower  |
-| Scratch - blank_h?       | 3080467.6            | 7.0x slower  |
-| Scratch - blank_b?       | 2380807.8            | 9.0x slower  |
-| Scratch - blank_f?       | 2144800.2            | 10.0x slower |
+| SinFastBlank - blank?    | 120816381.4          | -            |
+| SinFastBlank - blank_as? | 112942015.6          | -            |
+| FastBlank - blank?       | 49063027.7           | 2.5x slower  |
+| FastBlank - blank_as?    | 46986294.5           | 2.6x slower  |
+| Scratch - blank_c?       | 13643307.3           | 8.9x slower  |
+| Scratch - blank_g?       | 13391399.1           | 9.0x slower  |
+| ActiveSupport - blank?   | 13346991.2           | 9.1x slower  |
+| Scratch - blank_a?       | 10550195.4           | 11.5x slower |
+| Scratch - blank_e?       | 10383129.5           | 11.6x slower |
+| Scratch - blank_d?       | 7901646.3            | 15.3x slower |
+| Scratch - blank_h?       | 7871979.3            | 15.3x slower |
+| Scratch - blank_f?       | 5386684.1            | 22.4x slower |
+| Scratch - blank_b?       | 5305109.6            | 22.8x slower |
 +--------------------------+----------------------+--------------+
 
 +----------------------------------------------------------------+
@@ -162,21 +162,27 @@ $ bundle exec rake benchmark
 +--------------------------+----------------------+--------------+
 | Name                     | Iteration Per Second | Speed Ratio  |
 +--------------------------+----------------------+--------------+
-| SinFastBlank - blank_as? | 21539464.6           | -            |
-| SinFastBlank - blank?    | 21428913.7           | -            |
-| FastBlank - blank?       | 14208669.1           | 1.5x slower  |
-| FastBlank - blank_as?    | 13947495.7           | 1.5x slower  |
-| Scratch - blank_c?       | 5909689.1            | 3.6x slower  |
-| ActiveSupport - blank?   | 4806411.1            | 4.5x slower  |
-| Scratch - blank_g?       | 4644442.1            | 4.6x slower  |
-| Scratch - blank_a?       | 4532311.2            | 4.8x slower  |
-| Scratch - blank_e?       | 3788223.2            | 5.7x slower  |
-| Scratch - blank_d?       | 3175205.6            | 6.8x slower  |
-| Scratch - blank_h?       | 2800006.5            | 7.7x slower  |
-| Scratch - blank_b?       | 1839252.0            | 11.7x slower |
-| Scratch - blank_f?       | 1612757.1            | 13.4x slower |
+| SinFastBlank - blank?    | 121015644.9          | -            |
+| SinFastBlank - blank_as? | 112957090.8          | -            |
+| FastBlank - blank?       | 49089308.3           | 2.5x slower  |
+| FastBlank - blank_as?    | 47059926.1           | 2.6x slower  |
+| Scratch - blank_c?       | 12089725.9           | 10.0x slower |
+| Scratch - blank_g?       | 11864348.6           | 10.2x slower |
+| ActiveSupport - blank?   | 11707898.8           | 10.3x slower |
+| Scratch - blank_a?       | 9179575.9            | 13.2x slower |
+| Scratch - blank_e?       | 9041236.4            | 13.4x slower |
+| Scratch - blank_h?       | 7399548.4            | 16.4x slower |
+| Scratch - blank_d?       | 7274842.9            | 16.6x slower |
+| Scratch - blank_b?       | 3869438.0            | 31.3x slower |
+| Scratch - blank_f?       | 3861215.8            | 31.3x slower |
 +--------------------------+----------------------+--------------+
 ```
+
+The benchmark was executed in the following environment:
+
+`ruby 3.4.2 (2025-02-15 revision d2930f8e7a) +YJIT +PRISM [arm64-darwin24]`
+
+Performance depends not only on the string length but also on its content.
 
 ## Changelog
 
