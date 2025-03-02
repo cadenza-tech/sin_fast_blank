@@ -18,7 +18,20 @@ class TestBlank < Minitest::Test
   end
 
   def test_equivalency
-    ['', ' ', "\r\n", "\r\n\v\f\r\s\t"].each do |s|
+    [
+      '',
+      ' ',
+      '	',
+      "\r\n",
+      "\t\n\v\f\r\s 	",
+      "\t\n\v\f\r\s 	\t\n\v\f\r\s 	\t\n\v\f\r\s 	\t\n\v\f\r\s 	Lorem ipsum",
+      '    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+      '    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. 🐈️', # rubocop:disable Layout/LineLength
+      '    吾輩は猫である。名前はまだ無い。',
+      '    吾輩は🐈️である。名前はまだ無い。',
+      '🐈️',
+      '    🐈️'
+    ].each do |s|
       assert_equal(s.scratch_blank?, s.blank?)
     end
   end
