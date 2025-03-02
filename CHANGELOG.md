@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.2.0] - 2025-3-2
+
+- Perf: Improve performance
+- Other: Update benchmark
+- Other: Update .rubocop.yml
+- Other: Add .editorconfig
+- Other: Update summary
+- Other: Update README.md
+-
 ## [2.1.0] - 2025-1-17
 
 - Other: Improve gemspec
