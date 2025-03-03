@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.2.1] - 2025-3-3
+
+- Test: Update tests
+- Fix: Fix benchmark
+- Other: Update summary
+
 ## [2.2.0] - 2025-3-2
 
 - Perf: Improve performance
