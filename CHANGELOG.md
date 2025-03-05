@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.0.0] - 2025-3-5
+
+- New: Rename `String#blank_as?` to `String#blank?`
+- New: Rename `String#blank?` to `String#ascii_blank?`
+- Test: Update tests
+- Other: Update benchmark
+- Other Update README.md
+
 ## [2.2.1] - 2025-3-3
 
 - Test: Update tests
