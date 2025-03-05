@@ -17,18 +17,18 @@ BENCHMARK_STRINGS.each do |string|
   report = Benchmark.ips do |x|
     x.quiet = true
 
-    x.report('SinFastBlank - blank_as?') do |times|
-      i = 0
-      while i < times
-        string.blank_as?
-        i += 1
-      end
-    end
-
     x.report('SinFastBlank - blank?') do |times|
       i = 0
       while i < times
         string.blank?
+        i += 1
+      end
+    end
+
+    x.report('SinFastBlank - ascii_blank?') do |times|
+      i = 0
+      while i < times
+        string.ascii_blank?
         i += 1
       end
     end

@@ -1,26 +1,14 @@
 # frozen_string_literal: false
 
-$VERBOSE = nil
-
 require_relative 'test_helper'
-
-class ::String
-  def scratch_blank?
-    !!(self =~ /\A[[:space:]]*\z/)
-  end
-end
+require 'sin_fast_blank'
 
 class TestBlank < Minitest::Test
-  def setup
-    String.class_eval { undef_method(:blank?) if method_defined?(:blank?) }
-    $LOADED_FEATURES.reject! { |f| f.include?('sin_fast_blank') }
-    require 'sin_fast_blank'
-  end
-
-  def test_equivalency
-    [
+  def test_equivalency # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+    test_strings = [
       '',
       ' ',
+      '　',
       '	',
       "\r\n",
       "\t\n\v\f\r\s 	",
@@ -31,34 +19,23 @@ class TestBlank < Minitest::Test
       '    吾輩は🐈️である。名前はまだ無い。',
       '🐈️',
       '    🐈️'
-    ].each do |s|
-      assert_equal(s.scratch_blank?, s.blank?)
-    end
-  end
+    ]
+    test_strings += (0..16 * 16 * 16 * 16).map { |i| i.chr('UTF-8') rescue nil }.compact # rubocop:disable Style/RescueModifier
+    test_strings += (0..256).map { |i| i.chr('ASCII') rescue nil }.compact # rubocop:disable Style/RescueModifier
 
-  def test_empty
-    (16 * 16 * 16 * 16).times do |i|
-      begin
-        c = i.chr('UTF-8')
-      rescue StandardError
-        next
-      end
+    expected_results = test_strings.each_with_object({}) { |s, h| h[s] = s.blank? }
 
-      assert_equal(c.strip.empty?, c.blank?)
-    end
+    ::String.class_eval { undef_method(:blank?) if method_defined?(:blank?) }
+    require 'active_support/core_ext/object/blank'
 
-    256.times do |i|
-      begin
-        c = i.chr('ASCII')
-      rescue StandardError
-        next
-      end
+    actual_results = test_strings.each_with_object({}) { |s, h| h[s] = s.blank? }
 
-      assert_equal(c.strip.empty?, c.blank?)
+    test_strings.each do |string|
+      assert_equal(expected_results[string], actual_results[string])
     end
   end
 
   def test_null_character
-    assert_predicate("\u0000", :blank?)
+    refute_predicate("\u0000", :blank?)
   end
 end

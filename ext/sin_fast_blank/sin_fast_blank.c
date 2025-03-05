@@ -36,7 +36,7 @@ static inline int is_unicode_blank(unsigned int codepoint) {
   }
 }
 
-static VALUE rb_str_blank_as(VALUE str) {
+static VALUE rb_str_blank(VALUE str) {
   long len = RSTRING_LEN(str);
   if (len == 0) {
     return Qtrue;
@@ -83,7 +83,7 @@ FULL_CHECK:;
   return Qtrue;
 }
 
-static VALUE rb_str_blank(VALUE str) {
+static VALUE rb_str_ascii_blank(VALUE str) {
   long len = RSTRING_LEN(str);
   if (len == 0) {
     return Qtrue;
@@ -126,5 +126,5 @@ FULL_CHECK:;
 
 void Init_sin_fast_blank(void) {
   rb_define_method(rb_cString, "blank?", rb_str_blank, 0);
-  rb_define_method(rb_cString, "blank_as?", rb_str_blank_as, 0);
+  rb_define_method(rb_cString, "ascii_blank?", rb_str_ascii_blank, 0);
 }

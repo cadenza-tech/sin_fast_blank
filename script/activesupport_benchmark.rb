@@ -1,7 +1,5 @@
 # frozen_string_literal: false
 
-$VERBOSE = nil
-
 require 'json'
 require 'benchmark/ips'
 require 'active_support/core_ext/object/blank'

@@ -17,8 +17,8 @@ public class SinFastBlankLibrary implements Library {
         runtime.getString().defineAnnotatedMethods(SinFastBlankLibrary.class);
     }
 
-    @JRubyMethod(name = "blank_as?")
-    public static IRubyObject blank_as_p(ThreadContext context, IRubyObject self) {
+    @JRubyMethod(name = "blank?")
+    public static IRubyObject blank_p(ThreadContext context, IRubyObject self) {
         RubyString str = (RubyString) self;
         if (str.size() == 0) {
             return context.tru;
@@ -107,8 +107,8 @@ public class SinFastBlankLibrary implements Library {
         }
     }
 
-    @JRubyMethod(name = "blank?")
-    public static IRubyObject blank_p(ThreadContext context, IRubyObject self) {
+    @JRubyMethod(name = "ascii_blank?")
+    public static IRubyObject ascii_blank_p(ThreadContext context, IRubyObject self) {
         RubyString str = (RubyString) self;
         if (str.size() == 0) {
             return context.tru;
