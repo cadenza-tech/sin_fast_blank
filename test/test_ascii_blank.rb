@@ -1,22 +1,13 @@
 # frozen_string_literal: false
 
-$VERBOSE = nil
-
 require_relative 'test_helper'
 require 'sin_fast_blank'
 
-class TestBlankAs < Minitest::Test
-  def setup
-    String.class_eval { undef_method(:blank?) if method_defined?(:blank?) }
-    $LOADED_FEATURES.reject! { |f| f.include?('active_support/core_ext/object/blank.rb') }
-    require 'active_support/core_ext/object/blank'
-  end
-
+class TestAsciiBlank < Minitest::Test
   def test_equivalency # rubocop:disable Metrics/MethodLength
     [
       '',
       ' ',
-      '　',
       '	',
       "\r\n",
       "\t\n\v\f\r\s 	",
@@ -28,7 +19,7 @@ class TestBlankAs < Minitest::Test
       '🐈️',
       '    🐈️'
     ].each do |s|
-      assert_equal(s.blank?, s.blank_as?)
+      assert_equal(!!(s =~ /\A[[:space:]]*\z/), s.ascii_blank?) # rubocop:disable Style/DoubleNegation
     end
 
     (16 * 16 * 16 * 16).times do |i|
@@ -38,7 +29,7 @@ class TestBlankAs < Minitest::Test
         next
       end
 
-      assert_equal(c.blank?, c.blank_as?)
+      assert_equal(c.strip.empty?, c.ascii_blank?)
     end
 
     256.times do |i|
@@ -48,11 +39,11 @@ class TestBlankAs < Minitest::Test
         next
       end
 
-      assert_equal(c.blank?, c.blank_as?)
+      assert_equal(c.strip.empty?, c.ascii_blank?)
     end
   end
 
   def test_null_character
-    refute_predicate("\u0000", :blank_as?)
+    assert_predicate("\u0000", :ascii_blank?)
   end
 end
