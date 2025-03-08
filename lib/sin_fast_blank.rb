@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class ::String
+class String
   # Explicitly undefine method before redefining to avoid Ruby warnings.
   undef_method(:blank?) if method_defined?(:blank?)
 end

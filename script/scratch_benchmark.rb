@@ -4,7 +4,7 @@ require 'json'
 require 'benchmark/ips'
 require_relative 'benchmark_strings'
 
-class ::String
+class String
   def blank_a?
     !/[^[:space:]]/.match?(self)
   end
