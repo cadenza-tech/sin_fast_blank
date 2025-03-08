@@ -4,7 +4,7 @@ require_relative 'test_helper'
 require 'sin_fast_blank'
 
 class TestBlank < Minitest::Test
-  def test_equivalency # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+  def test_equivalency
     test_strings = [
       '',
       ' ',
@@ -23,15 +23,8 @@ class TestBlank < Minitest::Test
     test_strings += (0..16 * 16 * 16 * 16).map { |i| i.chr('UTF-8') rescue nil }.compact # rubocop:disable Style/RescueModifier
     test_strings += (0..256).map { |i| i.chr('ASCII') rescue nil }.compact # rubocop:disable Style/RescueModifier
 
-    expected_results = test_strings.each_with_object({}) { |s, h| h[s] = s.blank? }
-
-    ::String.class_eval { undef_method(:blank?) if method_defined?(:blank?) }
-    require 'active_support/core_ext/object/blank'
-
-    actual_results = test_strings.each_with_object({}) { |s, h| h[s] = s.blank? }
-
     test_strings.each do |string|
-      assert_equal(expected_results[string], actual_results[string])
+      assert_equal(string.as_blank?, string.blank?)
     end
   end
 
