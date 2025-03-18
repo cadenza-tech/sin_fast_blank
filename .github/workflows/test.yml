@@ -31,7 +31,6 @@ jobs:
           - 'ruby-head'
           - 'jruby-9.3'
           - 'jruby-9.4'
-          - 'jruby-head'
           - 'truffleruby-22'
           - 'truffleruby-23'
           - 'truffleruby-24'
