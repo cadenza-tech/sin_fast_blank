@@ -5,8 +5,8 @@ require_relative 'lib/sin_fast_blank/version'
 Gem::Specification.new do |spec|
   spec.name = 'sin_fast_blank'
   spec.version = SinFastBlank::VERSION
-  spec.description = 'Check for blank string faster than FastBlank and ActiveSupport'
-  spec.summary = 'Check for blank string faster than FastBlank and ActiveSupport'
+  spec.description = 'Check for blank string faster than FastBlank or ActiveSupport'
+  spec.summary = 'Check for blank string faster than FastBlank or ActiveSupport'
   spec.authors = ['Masahiro']
   spec.email = ['watanabe@cadenza-tech.com']
   spec.license = 'MIT'
