@@ -1,5 +1,10 @@
 # Changelog
 
+## [3.1.1] - 2025-3-18
+
+- Other: Fix test CI
+- Other: Update summary
+
 ## [3.1.0] - 2025-3-12
 
 - Refactor: Refactor implementation
