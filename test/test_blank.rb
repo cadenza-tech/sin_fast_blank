@@ -20,7 +20,7 @@ class TestBlank < Minitest::Test
       '🐈️',
       '    🐈️'
     ]
-    test_strings += (0..16 * 16 * 16 * 16).map { |i| i.chr('UTF-8') rescue nil }.compact # rubocop:disable Style/RescueModifier
+    test_strings += (0..(16 * 16 * 16 * 16)).map { |i| i.chr('UTF-8') rescue nil }.compact # rubocop:disable Style/RescueModifier
     test_strings += (0..256).map { |i| i.chr('ASCII') rescue nil }.compact # rubocop:disable Style/RescueModifier
 
     test_strings.each do |string|
