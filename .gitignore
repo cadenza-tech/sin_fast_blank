@@ -43,6 +43,7 @@ coverage/
 doc/
 ehthumbs.db
 ehthumbs_vista.db
+ext/java/**/*.class
 Gemfile.lock
 # Icon must end with two \r
 Icon
