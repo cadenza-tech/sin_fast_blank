@@ -11,6 +11,8 @@ Forked from [FastBlank](https://github.com/SamSaffron/fast_blank).
   - [String#blank?](#stringblank)
   - [String#ascii\_blank?](#stringascii_blank)
 - [Benchmark](#benchmark)
+- [Development](#development)
+  - [Building for JRuby](#building-for-jruby)
 - [Changelog](#changelog)
 - [Contributing](#contributing)
 - [License](#license)
@@ -183,6 +185,50 @@ The benchmark was executed in the following environment:
 `ruby 3.4.2 (2025-02-15 revision d2930f8e7a) +YJIT +PRISM [arm64-darwin24]`
 
 Performance depends not only on the string length but also on its content.
+
+## Development
+
+### Building for JRuby
+
+To build the Java extension for JRuby support, follow these steps:
+
+1. Start a JRuby Docker container:
+
+```bash
+docker run -it --rm -v "$(pwd):/app" -w /app jruby:9.3.4.0-jdk8 /bin/bash
+```
+
+2. Install necessary dependencies:
+
+```bash
+apt update
+apt upgrade
+apt install git
+```
+
+3. Compile the Java source:
+
+```bash
+cd ext/java
+javac -cp /opt/jruby/lib/jruby.jar sin_deep_merge/SinDeepMergeLibrary.java
+```
+
+4. Create the JAR file:
+
+```bash
+jar cvf ../../lib/sin_deep_merge/sin_deep_merge.jar sin_deep_merge/SinDeepMergeLibrary.class
+```
+
+5. Install dependencies and run linter, tests and benchmarks:
+
+```bash
+cd ../../
+gem install bundler
+bundle install
+bundle exec rake rubocop
+bundle exec rake test
+bundle exec rake benchmark
+```
 
 ## Changelog
 
