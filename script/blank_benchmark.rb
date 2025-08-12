@@ -39,7 +39,7 @@ class BlankBenchmark
 
         BENCHMARK_METHODS.each do |lib_name, methods|
           methods.each do |method|
-            x.report(format_report_label(lib_name, method)) do |times|
+            x.report("#{lib_name} - #{method}") do |times|
               i = 0
               while i < times
                 string.send(method)
@@ -54,15 +54,6 @@ class BlankBenchmark
     end
 
     results
-  end
-
-  def format_report_label(lib_name, method)
-    if lib_name == 'Scratch'
-      method_name = method.to_s.sub(/\A(fast_|sin_|as_)/, '')
-    else
-      method_name = 'blank?'
-    end
-    "#{lib_name} - #{method_name}"
   end
 
   def display_results(all_results)
@@ -84,7 +75,7 @@ class BlankBenchmark
     sorted_results = results.sort_by { |_key, value| value }.reverse
     fastest_speed = sorted_results.first[1]
     sorted_results.map do |key, value|
-      [key, format('%.1f', value), calculate_speed_ratio(fastest_speed, value)]
+      [key.sub(/(fast_|sin_|as_)/, ''), format('%.1f', value), calculate_speed_ratio(fastest_speed, value)]
     end
   end
 
