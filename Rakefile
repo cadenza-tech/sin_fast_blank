@@ -34,11 +34,9 @@ RuboCop::RakeTask.new(:rubocop) do |task|
 end
 
 task benchmark: [:compile] do
-  require_relative 'script/benchmark'
+  RubyVM::YJIT.enable if defined?(RubyVM::YJIT) && !RubyVM::YJIT.enabled?
 
-  sh 'ruby --yjit script/sin_fast_blank_benchmark.rb'
-  sh 'ruby --yjit script/fast_blank_benchmark.rb'
-  sh 'ruby --yjit script/activesupport_benchmark.rb'
-  sh 'ruby --yjit script/scratch_benchmark.rb'
-  Benchmark.summarize
+  require_relative 'script/blank_benchmark'
+
+  BlankBenchmark.run
 end
