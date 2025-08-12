@@ -75,7 +75,7 @@ class BlankBenchmark
     sorted_results = results.sort_by { |_key, value| value }.reverse
     fastest_speed = sorted_results.first[1]
     sorted_results.map do |key, value|
-      [key.sub(/(fast_|sin_|as_)/, ''), format('%.1f', value), calculate_speed_ratio(fastest_speed, value)]
+      [key.sub(/(fast|sin|as)_/, ''), format('%.1f', value), calculate_speed_ratio(fastest_speed, value)]
     end
   end
 
