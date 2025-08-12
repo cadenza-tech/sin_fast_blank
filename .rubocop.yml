@@ -139,6 +139,12 @@ Style/EmptyMethod:
   Enabled: true
   EnforcedStyle: expanded
 
+# https://docs.rubocop.org/rubocop/cops_style.html#styleglobalvars
+Style/GlobalVars:
+  Enabled: true
+  AllowedVariables:
+    - $CFLAGS
+
 # https://docs.rubocop.org/rubocop/cops_style.html#stylehashsyntax
 Style/HashSyntax:
   Enabled: true
