@@ -6,6 +6,8 @@ on:
       - 'Gemfile'
       - 'Rakefile'
       - 'sin_fast_blank.gemspec'
+      - 'ext/**/*'
+      - 'lib/**/*'
       - '**/*.rb'
   schedule:
     - cron: '0 12 * * 5'
