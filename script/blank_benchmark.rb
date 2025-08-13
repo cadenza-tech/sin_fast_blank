@@ -25,15 +25,19 @@ class BlankBenchmark
 
   private
 
-  def execute_benchmarks
+  def execute_benchmarks # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
     results = {}
 
     BENCHMARK_STRINGS.each do |string|
       puts "Benchmarking string length: #{string.length}..."
 
+      GC.start
+      GC.compact if GC.respond_to?(:compact)
+      GC.disable
+
       report = Benchmark.ips do |x|
-        x.time = 1
-        x.warmup = 0.5
+        x.time = 5
+        x.warmup = 5
         x.quiet = true
 
         BENCHMARK_METHODS.each do |lib_name, methods|
@@ -48,6 +52,8 @@ class BlankBenchmark
           end
         end
       end
+
+      GC.enable
 
       results[string.length] = report.entries.map { |entry| [entry.label, entry.ips] }.to_h
     end
