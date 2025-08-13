@@ -7,7 +7,6 @@ require_relative 'benchmark_strings'
 
 class BlankBenchmark
   SPEED_RATIO_THRESHOLD = 0.1
-
   BENCHMARK_METHODS = {
     'FastBlank' => [:fast_blank_as?, :fast_blank?],
     'SinFastBlank' => [:sin_blank?, :sin_ascii_blank?],
