@@ -1,5 +1,16 @@
 # Changelog
 
+## [4.0.0] - 2025-8-13
+
+- Perf: Improve performance
+- Test: Update tests
+- Other: Update benchmark
+- Other: Update .rubocop.yml
+- Other: Improve test CI
+- Other: Improve lint CI
+- Other: Update .gitignore
+- Other: Update README.md
+
 ## [3.1.1] - 2025-3-18
 
 - Other: Fix test CI
