@@ -31,7 +31,7 @@ class BlankBenchmark
     BENCHMARK_STRINGS.each do |string|
       puts "Benchmarking string length: #{string.length}..."
 
-      report = run_benchmark(string, :blank?)
+      report = run_benchmark(string)
 
       results[string.length] = report.entries.map { |entry| [entry.label, entry.ips] }.to_h
     end
