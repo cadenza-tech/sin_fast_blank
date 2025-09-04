@@ -1,35 +1,44 @@
 # frozen_string_literal: false
 
 module ScratchBlankMethods
+  BLANK_A_REGEXP = /[^[:space:]]/.freeze
+  BLANK_B_REGEXP = /[[:^space:]]/.freeze
+  BLANK_C_REGEXP = /\A[[:space:]]*\z/.freeze
+  BLANK_D_REGEXP = /\A[[:space:]]*\z/.freeze
+  BLANK_E_REGEXP = /[^[:space:]]/.freeze
+  BLANK_F_REGEXP = /[[:^space:]]/.freeze
+  BLANK_G_REGEXP = /\A[[:space:]]*\z/.freeze
+  BLANK_H_REGEXP = /\A[[:space:]]*\z/.freeze
+
   def blank_a?
-    !/[^[:space:]]/.match?(self)
+    !BLANK_A_REGEXP.match?(self)
   end
 
   def blank_b?
-    self !~ /[[:^space:]]/
+    self !~ BLANK_B_REGEXP
   end
 
   def blank_c?
-    /\A[[:space:]]*\z/.match?(self)
+    BLANK_C_REGEXP.match?(self)
   end
 
   def blank_d?
-    !!(self =~ /\A[[:space:]]*\z/)
+    !!(self =~ BLANK_D_REGEXP)
   end
 
   def blank_e?
-    empty? || !/[^[:space:]]/.match?(self)
+    empty? || !BLANK_E_REGEXP.match?(self)
   end
 
   def blank_f?
-    empty? || (self !~ /[[:^space:]]/)
+    empty? || (self !~ BLANK_F_REGEXP)
   end
 
   def blank_g?
-    empty? || /\A[[:space:]]*\z/.match?(self)
+    empty? || BLANK_G_REGEXP.match?(self)
   end
 
   def blank_h?
-    empty? || !!(self =~ /\A[[:space:]]*\z/)
+    empty? || !!(self =~ BLANK_H_REGEXP)
   end
 end
