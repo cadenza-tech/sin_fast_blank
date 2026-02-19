@@ -20,27 +20,30 @@ public class SinFastBlankLibrary implements Library {
     @JRubyMethod(name = "blank?")
     public static IRubyObject blank_p(ThreadContext context, IRubyObject self) {
         RubyString str = (RubyString) self;
-        if (str.size() == 0) {
+        ByteList byteList = str.getByteList();
+        if (byteList.realSize() == 0) {
             return context.tru;
         }
 
-        ByteList sByteList = str.getByteList();
-        byte[] sBytes = sByteList.unsafeBytes();
-        int s = sByteList.begin();
-        int e = s + sByteList.realSize();
+        byte[] bytes = byteList.unsafeBytes();
+        int s = byteList.begin();
+        int e = s + byteList.realSize();
+        Encoding enc = str.getEncoding();
 
-        if (str.getCodeRange() == StringSupport.CR_7BIT) {
+        if (enc.isAsciiCompatible()) {
             for (int i = s; i < e; i++) {
-                byte c = sBytes[i];
+                byte c = bytes[i];
+                if (c < 0) {
+                    return blankAsSlow(context, bytes, i, e, enc);
+                }
                 if (!isAsciiBlankAs(c)) {
                     return context.fals;
                 }
             }
-
             return context.tru;
         }
 
-        return blankAsSlow(context, sBytes, s, e, str.getEncoding());
+        return blankAsSlow(context, bytes, s, e, enc);
     }
 
     private static boolean isAsciiBlankAs(byte c) {
@@ -110,26 +113,30 @@ public class SinFastBlankLibrary implements Library {
     @JRubyMethod(name = "ascii_blank?")
     public static IRubyObject ascii_blank_p(ThreadContext context, IRubyObject self) {
         RubyString str = (RubyString) self;
-        if (str.size() == 0) {
+        ByteList byteList = str.getByteList();
+        if (byteList.realSize() == 0) {
             return context.tru;
         }
 
-        ByteList sByteList = str.getByteList();
-        byte[] sBytes = sByteList.unsafeBytes();
-        int s = sByteList.begin();
-        int e = s + sByteList.realSize();
+        byte[] bytes = byteList.unsafeBytes();
+        int s = byteList.begin();
+        int e = s + byteList.realSize();
+        Encoding enc = str.getEncoding();
 
-        if (str.getCodeRange() == StringSupport.CR_7BIT) {
+        if (enc.isAsciiCompatible()) {
             for (int i = s; i < e; i++) {
-                if (!isSpace(sBytes[i])) {
+                byte c = bytes[i];
+                if (c < 0) {
+                    return blankSlow(context, bytes, i, e, enc);
+                }
+                if (!isSpace(c)) {
                     return context.fals;
                 }
             }
-
             return context.tru;
         }
 
-        return blankSlow(context, sBytes, s, e, str.getEncoding());
+        return blankSlow(context, bytes, s, e, enc);
     }
 
     private static IRubyObject blankSlow(ThreadContext context, byte[] bytes, int s, int e, Encoding enc) {
