@@ -7,7 +7,7 @@
 #ifdef __AVX2__
   #include <immintrin.h>
 #endif
-#ifdef __ARM_NEON
+#if defined(__ARM_NEON) && defined(__aarch64__)
   #include <arm_neon.h>
 #endif
 
@@ -29,7 +29,7 @@ static inline bool is_ascii_blank_char(unsigned char c) {
          c == ASCII_BLANK_CR;
 }
 
-static inline int is_unicode_blank(unsigned int codepoint) {
+static inline bool is_unicode_blank(unsigned int codepoint) {
   switch (codepoint) {
     case 0x9:
     case 0xa:
@@ -56,9 +56,9 @@ static inline int is_unicode_blank(unsigned int codepoint) {
     case 0x202f:
     case 0x205f:
     case 0x3000:
-      return 1;
+      return true;
     default:
-      return 0;
+      return false;
   }
 }
 
@@ -196,7 +196,7 @@ static bool check_blank_sse2(const unsigned char *ptr, size_t len, const unsigne
 }
 #endif
 
-#ifdef __ARM_NEON
+#if defined(__ARM_NEON) && defined(__aarch64__)
 static bool check_blank_neon(const unsigned char *ptr, size_t len, const unsigned char **non_ascii_pos) {
   const uint8x16_t ascii_mask = vdupq_n_u8(0x80);
   const uint8x16_t space = vdupq_n_u8(ASCII_BLANK_SPACE);
@@ -297,13 +297,13 @@ static VALUE rb_str_blank(VALUE str) {
     bool is_blank = false;
 
 #ifdef __AVX2__
-    is_blank = check_blank_avx2(ptr, len, &non_ascii_pos);
+    is_blank = check_blank_avx2(ptr, (size_t)len, &non_ascii_pos);
 #elif defined(__SSE2__)
-    is_blank = check_blank_sse2(ptr, len, &non_ascii_pos);
-#elif defined(__ARM_NEON)
-    is_blank = check_blank_neon(ptr, len, &non_ascii_pos);
+    is_blank = check_blank_sse2(ptr, (size_t)len, &non_ascii_pos);
+#elif defined(__ARM_NEON) && defined(__aarch64__)
+    is_blank = check_blank_neon(ptr, (size_t)len, &non_ascii_pos);
 #else
-    is_blank = check_blank_scalar(ptr, len, &non_ascii_pos);
+    is_blank = check_blank_scalar(ptr, (size_t)len, &non_ascii_pos);
 #endif
 
     if (is_blank) {
@@ -314,10 +314,10 @@ static VALUE rb_str_blank(VALUE str) {
       return Qfalse;
     }
 
-    ptr = (const unsigned char *)non_ascii_pos;
+    ptr = non_ascii_pos;
   }
 
-  while ((const char *)ptr < (const char *)end) {
+  while (ptr < end) {
     int clen;
     unsigned int codepoint = rb_enc_codepoint_len((const char *)ptr, (const char *)end, &clen, enc);
 
@@ -337,16 +337,16 @@ static VALUE rb_str_ascii_blank(VALUE str) {
     return Qtrue;
   }
 
-  const char *ptr = RSTRING_PTR(str);
-  const char *end = ptr + len;
+  const unsigned char *ptr = (const unsigned char *)RSTRING_PTR(str);
+  const unsigned char *end = ptr + len;
   rb_encoding *enc = STR_ENC_GET(str);
 
   if (rb_enc_asciicompat(enc)) {
     for (; ptr < end; ptr++) {
-      unsigned char c = (unsigned char)*ptr;
+      unsigned char c = *ptr;
 
       if (c >= 0x80) {
-        goto FULL_CHECK;
+        break;
       }
 
       if (!rb_isspace(c) && c != 0) {
@@ -354,13 +354,14 @@ static VALUE rb_str_ascii_blank(VALUE str) {
       }
     }
 
-    return Qtrue;
+    if (ptr >= end) {
+      return Qtrue;
+    }
   }
 
-FULL_CHECK:;
   while (ptr < end) {
     int clen;
-    unsigned int codepoint = rb_enc_codepoint_len(ptr, end, &clen, enc);
+    unsigned int codepoint = rb_enc_codepoint_len((const char *)ptr, (const char *)end, &clen, enc);
 
     if (codepoint != 0 && !rb_isspace(codepoint)) {
       return Qfalse;
