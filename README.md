@@ -212,13 +212,13 @@ apt install git
 
 ```bash
 cd ext/java
-javac -cp /opt/jruby/lib/jruby.jar sin_deep_merge/SinDeepMergeLibrary.java
+javac -cp /opt/jruby/lib/jruby.jar sin_fast_blank/SinFastBlankLibrary.java
 ```
 
 4. Create the JAR file:
 
 ```bash
-jar cvf ../../lib/sin_deep_merge/sin_deep_merge.jar sin_deep_merge/SinDeepMergeLibrary.class
+jar cvf ../../lib/sin_fast_blank/sin_fast_blank.jar sin_fast_blank/SinFastBlankLibrary.class
 ```
 
 5. Install dependencies and run linter, tests and benchmarks:
