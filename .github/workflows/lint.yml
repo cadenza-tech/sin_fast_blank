@@ -7,11 +7,13 @@ on:
       - 'Gemfile'
       - 'Rakefile'
       - 'sin_fast_blank.gemspec'
+      - '**/*.c'
+      - '**/*.java'
       - '**/*.rb'
 permissions:
   contents: read
 jobs:
-  lint:
+  lint_ruby:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -25,3 +27,26 @@ jobs:
         env:
           RUBOCOP_FORMAT: github
         run: bundle exec rake rubocop
+  lint_c:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: clang-format
+        run: find ext/sin_deep_merge -name "*.c" -o -name "*.h" | xargs clang-format --style=file --dry-run --Werror
+  lint_java:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - name: Install google-java-format
+        run: |
+          VERSION=$(curl -s https://api.github.com/repos/google/google-java-format/releases/latest | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+          curl -sSL "https://github.com/google/google-java-format/releases/download/v${VERSION}/google-java-format-${VERSION}-all-deps.jar" -o /tmp/google-java-format.jar
+      - name: Google Java Format
+        run: java -jar /tmp/google-java-format.jar --aosp --dry-run --set-exit-if-changed $(find ext/java -name "*.java")
