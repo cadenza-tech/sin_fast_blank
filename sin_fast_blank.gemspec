@@ -31,9 +31,9 @@ Gem::Specification.new do |spec|
   gemspec = File.basename(__FILE__)
   spec.files = IO.popen(%w[git ls-files]) do |ls|
     ls.readlines("\x0").map { |f| f.chomp("\x0") }.reject do |f|
-      (f == gemspec) ||
-        f.start_with?(*%w[bin/ ext/ script/ test/ spec/ features/ .git .github .editorconfig .rubocop.yml appveyor CODE_OF_CONDUCT.md Gemfile]) ||
-        Dir['lib/**/*.jar'].include?(f)
+      (f == gemspec) || f.start_with?(
+        *%w[bin/ ext/ script/ test/ spec/ features/ .git .github .clang-format .editorconfig .rubocop.yml appveyor CODE_OF_CONDUCT.md Gemfile]
+      ) || Dir['lib/**/*.jar'].include?(f)
     end
   end
 
