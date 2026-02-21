@@ -33,7 +33,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
       - name: clang-format
-        run: find ext/sin_deep_merge -name "*.c" -o -name "*.h" | xargs clang-format --style=file --dry-run --Werror
+        run: find ext/sin_fast_blank -name "*.c" -o -name "*.h" | xargs clang-format --style=file --dry-run --Werror
   lint_java:
     runs-on: ubuntu-latest
     steps:
