@@ -7,114 +7,48 @@
 #ifdef __AVX2__
   #include <immintrin.h>
 #endif
-#ifdef __ARM_NEON
+#if defined(__ARM_NEON) && defined(__aarch64__)
   #include <arm_neon.h>
 #endif
 
 #define STR_ENC_GET(str) rb_enc_from_index(ENCODING_GET(str))
 
-#define ASCII_BLANK_TAB 0x09
-#define ASCII_BLANK_LF 0x0a
-#define ASCII_BLANK_VT 0x0b
-#define ASCII_BLANK_FF 0x0c
-#define ASCII_BLANK_CR 0x0d
-#define ASCII_BLANK_SPACE 0x20
+#define ASCII_WS_RANGE_MIN 0x09
+#define ASCII_WS_RANGE_MAX 0x0d
+#define ASCII_WS_SPACE     0x20
 
 static inline bool is_ascii_blank_char(unsigned char c) {
-  return c == ASCII_BLANK_SPACE ||
-         c == ASCII_BLANK_TAB ||
-         c == ASCII_BLANK_LF ||
-         c == ASCII_BLANK_VT ||
-         c == ASCII_BLANK_FF ||
-         c == ASCII_BLANK_CR;
+  return (c >= ASCII_WS_RANGE_MIN && c <= ASCII_WS_RANGE_MAX) || c == ASCII_WS_SPACE;
 }
 
-static inline int is_unicode_blank(unsigned int codepoint) {
+static inline bool is_ascii_blank_or_null_char(unsigned char c) {
+  return c == 0x00 || (c >= ASCII_WS_RANGE_MIN && c <= ASCII_WS_RANGE_MAX) || c == ASCII_WS_SPACE;
+}
+
+static inline bool is_unicode_blank(unsigned int codepoint) {
   switch (codepoint) {
-    case 0x9:
-    case 0xa:
-    case 0xb:
-    case 0xc:
-    case 0xd:
+    case 0x9: case 0xa: case 0xb: case 0xc: case 0xd:
     case 0x20:
     case 0x85:
     case 0xa0:
     case 0x1680:
-    case 0x2000:
-    case 0x2001:
-    case 0x2002:
-    case 0x2003:
-    case 0x2004:
-    case 0x2005:
-    case 0x2006:
-    case 0x2007:
-    case 0x2008:
-    case 0x2009:
+    case 0x2000: case 0x2001: case 0x2002: case 0x2003: case 0x2004:
+    case 0x2005: case 0x2006: case 0x2007: case 0x2008: case 0x2009:
     case 0x200a:
-    case 0x2028:
-    case 0x2029:
+    case 0x2028: case 0x2029:
     case 0x202f:
     case 0x205f:
     case 0x3000:
-      return 1;
+      return true;
     default:
-      return 0;
+      return false;
   }
 }
 
-#ifdef __AVX2__
-static bool check_blank_avx2(const unsigned char *ptr, size_t len, const unsigned char **non_ascii_pos) {
-  const __m256i ascii_mask = _mm256_set1_epi8(0x80);
-  const __m256i space = _mm256_set1_epi8(ASCII_BLANK_SPACE);
-  const __m256i tab = _mm256_set1_epi8(ASCII_BLANK_TAB);
-  const __m256i lf = _mm256_set1_epi8(ASCII_BLANK_LF);
-  const __m256i vt = _mm256_set1_epi8(ASCII_BLANK_VT);
-  const __m256i ff = _mm256_set1_epi8(ASCII_BLANK_FF);
-  const __m256i cr = _mm256_set1_epi8(ASCII_BLANK_CR);
-
-  size_t i = 0;
-
-  for (; i + 31 < len; i += 32) {
-    __m256i chunk = _mm256_loadu_si256((const __m256i *)(ptr + i));
-
-    __m256i non_ascii = _mm256_and_si256(chunk, ascii_mask);
-    if (!_mm256_testz_si256(non_ascii, non_ascii)) {
-      for (size_t j = 0; j < 32; j++) {
-        if (ptr[i + j] >= 0x80) {
-          *non_ascii_pos = ptr + i + j;
-          return false;
-        }
-      }
-    }
-
-    __m256i is_space = _mm256_cmpeq_epi8(chunk, space);
-    __m256i is_tab = _mm256_cmpeq_epi8(chunk, tab);
-    __m256i is_lf = _mm256_cmpeq_epi8(chunk, lf);
-    __m256i is_vt = _mm256_cmpeq_epi8(chunk, vt);
-    __m256i is_ff = _mm256_cmpeq_epi8(chunk, ff);
-    __m256i is_cr = _mm256_cmpeq_epi8(chunk, cr);
-
-    __m256i is_blank = _mm256_or_si256(is_space, is_tab);
-    is_blank = _mm256_or_si256(is_blank, is_lf);
-    is_blank = _mm256_or_si256(is_blank, is_vt);
-    is_blank = _mm256_or_si256(is_blank, is_ff);
-    is_blank = _mm256_or_si256(is_blank, is_cr);
-
-    if (_mm256_movemask_epi8(is_blank) != -1) {
-      for (size_t j = 0; j < 32; j++) {
-        unsigned char c = ptr[i + j];
-        if (c >= 0x80) {
-          *non_ascii_pos = ptr + i + j;
-          return false;
-        }
-        if (!is_ascii_blank_char(c)) {
-          return false;
-        }
-      }
-    }
-  }
-
-  for (; i < len; i++) {
+/* Returns true if all blank. On false, sets *non_ascii_pos if non-ASCII found. NULL if non-blank ASCII found. */
+static inline bool scan_ascii_blank(const unsigned char *ptr, size_t len,
+                                    const unsigned char **non_ascii_pos) {
+  for (size_t i = 0; i < len; i++) {
     unsigned char c = ptr[i];
     if (c >= 0x80) {
       *non_ascii_pos = ptr + i;
@@ -124,169 +58,207 @@ static bool check_blank_avx2(const unsigned char *ptr, size_t len, const unsigne
       return false;
     }
   }
-
   return true;
+}
+
+static inline bool scan_ascii_blank_or_null(const unsigned char *ptr, size_t len,
+                                            const unsigned char **non_ascii_pos) {
+  for (size_t i = 0; i < len; i++) {
+    unsigned char c = ptr[i];
+    if (c >= 0x80) {
+      *non_ascii_pos = ptr + i;
+      return false;
+    }
+    if (!is_ascii_blank_or_null_char(c)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+#ifdef __AVX2__
+static bool check_blank_avx2(const unsigned char *ptr, size_t len,
+                             const unsigned char **non_ascii_pos) {
+  const __m256i ws_base = _mm256_set1_epi8(ASCII_WS_RANGE_MIN);
+  const __m256i four = _mm256_set1_epi8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
+  const __m256i space = _mm256_set1_epi8(ASCII_WS_SPACE);
+
+  size_t i = 0;
+  for (; i + 31 < len; i += 32) {
+    __m256i chunk = _mm256_loadu_si256((const __m256i *)(ptr + i));
+    __m256i adjusted = _mm256_sub_epi8(chunk, ws_base);
+    __m256i in_range = _mm256_cmpeq_epi8(_mm256_min_epu8(adjusted, four), adjusted);
+    __m256i is_sp = _mm256_cmpeq_epi8(chunk, space);
+    __m256i is_blank = _mm256_or_si256(in_range, is_sp);
+
+    int mask = _mm256_movemask_epi8(is_blank);
+    if (mask != -1) {
+      int first = __builtin_ctz(~mask);
+      unsigned char c = ptr[i + first];
+      if (c >= 0x80) {
+        *non_ascii_pos = ptr + i + first;
+      }
+      return false;
+    }
+  }
+
+  return scan_ascii_blank(ptr + i, len - i, non_ascii_pos);
+}
+
+static bool check_ascii_blank_avx2(const unsigned char *ptr, size_t len,
+                                   const unsigned char **non_ascii_pos) {
+  const __m256i ws_base = _mm256_set1_epi8(ASCII_WS_RANGE_MIN);
+  const __m256i four = _mm256_set1_epi8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
+  const __m256i space = _mm256_set1_epi8(ASCII_WS_SPACE);
+  const __m256i zero = _mm256_setzero_si256();
+
+  size_t i = 0;
+  for (; i + 31 < len; i += 32) {
+    __m256i chunk = _mm256_loadu_si256((const __m256i *)(ptr + i));
+    __m256i adjusted = _mm256_sub_epi8(chunk, ws_base);
+    __m256i in_range = _mm256_cmpeq_epi8(_mm256_min_epu8(adjusted, four), adjusted);
+    __m256i is_sp = _mm256_cmpeq_epi8(chunk, space);
+    __m256i is_null = _mm256_cmpeq_epi8(chunk, zero);
+    __m256i is_blank = _mm256_or_si256(_mm256_or_si256(in_range, is_sp), is_null);
+
+    int mask = _mm256_movemask_epi8(is_blank);
+    if (mask != -1) {
+      int first = __builtin_ctz(~mask);
+      unsigned char c = ptr[i + first];
+      if (c >= 0x80) {
+        *non_ascii_pos = ptr + i + first;
+      }
+      return false;
+    }
+  }
+
+  return scan_ascii_blank_or_null(ptr + i, len - i, non_ascii_pos);
 }
 #endif
 
 #ifdef __SSE2__
-static bool check_blank_sse2(const unsigned char *ptr, size_t len, const unsigned char **non_ascii_pos) {
-  const __m128i ascii_mask = _mm_set1_epi8(0x80);
-  const __m128i space = _mm_set1_epi8(ASCII_BLANK_SPACE);
-  const __m128i tab = _mm_set1_epi8(ASCII_BLANK_TAB);
-  const __m128i lf = _mm_set1_epi8(ASCII_BLANK_LF);
-  const __m128i vt = _mm_set1_epi8(ASCII_BLANK_VT);
-  const __m128i ff = _mm_set1_epi8(ASCII_BLANK_FF);
-  const __m128i cr = _mm_set1_epi8(ASCII_BLANK_CR);
+static bool check_blank_sse2(const unsigned char *ptr, size_t len,
+                             const unsigned char **non_ascii_pos) {
+  const __m128i ws_base = _mm_set1_epi8(ASCII_WS_RANGE_MIN);
+  const __m128i four = _mm_set1_epi8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
+  const __m128i space = _mm_set1_epi8(ASCII_WS_SPACE);
 
   size_t i = 0;
-
   for (; i + 15 < len; i += 16) {
     __m128i chunk = _mm_loadu_si128((const __m128i *)(ptr + i));
+    __m128i adjusted = _mm_sub_epi8(chunk, ws_base);
+    __m128i in_range = _mm_cmpeq_epi8(_mm_min_epu8(adjusted, four), adjusted);
+    __m128i is_sp = _mm_cmpeq_epi8(chunk, space);
+    __m128i is_blank = _mm_or_si128(in_range, is_sp);
 
-    __m128i non_ascii = _mm_and_si128(chunk, ascii_mask);
-    if (_mm_movemask_epi8(non_ascii) != 0) {
-      for (size_t j = 0; j < 16; j++) {
-        if (ptr[i + j] >= 0x80) {
-          *non_ascii_pos = ptr + i + j;
-          return false;
-        }
+    int mask = _mm_movemask_epi8(is_blank);
+    if (mask != 0xFFFF) {
+      int first = __builtin_ctz(~mask & 0xFFFF);
+      unsigned char c = ptr[i + first];
+      if (c >= 0x80) {
+        *non_ascii_pos = ptr + i + first;
       }
-    }
-
-    __m128i is_space = _mm_cmpeq_epi8(chunk, space);
-    __m128i is_tab = _mm_cmpeq_epi8(chunk, tab);
-    __m128i is_lf = _mm_cmpeq_epi8(chunk, lf);
-    __m128i is_vt = _mm_cmpeq_epi8(chunk, vt);
-    __m128i is_ff = _mm_cmpeq_epi8(chunk, ff);
-    __m128i is_cr = _mm_cmpeq_epi8(chunk, cr);
-
-    __m128i is_blank = _mm_or_si128(is_space, is_tab);
-    is_blank = _mm_or_si128(is_blank, is_lf);
-    is_blank = _mm_or_si128(is_blank, is_vt);
-    is_blank = _mm_or_si128(is_blank, is_ff);
-    is_blank = _mm_or_si128(is_blank, is_cr);
-
-    if (_mm_movemask_epi8(is_blank) != 0xFFFF) {
-      for (size_t j = 0; j < 16; j++) {
-        unsigned char c = ptr[i + j];
-        if (c >= 0x80) {
-          *non_ascii_pos = ptr + i + j;
-          return false;
-        }
-        if (!is_ascii_blank_char(c)) {
-          return false;
-        }
-      }
-    }
-  }
-
-  for (; i < len; i++) {
-    unsigned char c = ptr[i];
-    if (c >= 0x80) {
-      *non_ascii_pos = ptr + i;
-      return false;
-    }
-    if (!is_ascii_blank_char(c)) {
       return false;
     }
   }
 
-  return true;
+  return scan_ascii_blank(ptr + i, len - i, non_ascii_pos);
 }
-#endif
 
-#ifdef __ARM_NEON
-static bool check_blank_neon(const unsigned char *ptr, size_t len, const unsigned char **non_ascii_pos) {
-  const uint8x16_t ascii_mask = vdupq_n_u8(0x80);
-  const uint8x16_t space = vdupq_n_u8(ASCII_BLANK_SPACE);
-  const uint8x16_t tab = vdupq_n_u8(ASCII_BLANK_TAB);
-  const uint8x16_t lf = vdupq_n_u8(ASCII_BLANK_LF);
-  const uint8x16_t vt = vdupq_n_u8(ASCII_BLANK_VT);
-  const uint8x16_t ff = vdupq_n_u8(ASCII_BLANK_FF);
-  const uint8x16_t cr = vdupq_n_u8(ASCII_BLANK_CR);
+static bool check_ascii_blank_sse2(const unsigned char *ptr, size_t len,
+                                   const unsigned char **non_ascii_pos) {
+  const __m128i ws_base = _mm_set1_epi8(ASCII_WS_RANGE_MIN);
+  const __m128i four = _mm_set1_epi8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
+  const __m128i space = _mm_set1_epi8(ASCII_WS_SPACE);
+  const __m128i zero = _mm_setzero_si128();
 
   size_t i = 0;
-
   for (; i + 15 < len; i += 16) {
-    uint8x16_t chunk = vld1q_u8(ptr + i);
+    __m128i chunk = _mm_loadu_si128((const __m128i *)(ptr + i));
+    __m128i adjusted = _mm_sub_epi8(chunk, ws_base);
+    __m128i in_range = _mm_cmpeq_epi8(_mm_min_epu8(adjusted, four), adjusted);
+    __m128i is_sp = _mm_cmpeq_epi8(chunk, space);
+    __m128i is_null = _mm_cmpeq_epi8(chunk, zero);
+    __m128i is_blank = _mm_or_si128(_mm_or_si128(in_range, is_sp), is_null);
 
-    uint8x16_t non_ascii = vandq_u8(chunk, ascii_mask);
-    uint8x16_t has_non_ascii = vceqq_u8(non_ascii, ascii_mask);
-
-    if (vmaxvq_u8(has_non_ascii) != 0) {
-      for (size_t j = 0; j < 16; j++) {
-        if (ptr[i + j] >= 0x80) {
-          *non_ascii_pos = ptr + i + j;
-          return false;
-        }
+    int mask = _mm_movemask_epi8(is_blank);
+    if (mask != 0xFFFF) {
+      int first = __builtin_ctz(~mask & 0xFFFF);
+      unsigned char c = ptr[i + first];
+      if (c >= 0x80) {
+        *non_ascii_pos = ptr + i + first;
       }
-    }
-
-    uint8x16_t is_space = vceqq_u8(chunk, space);
-    uint8x16_t is_tab = vceqq_u8(chunk, tab);
-    uint8x16_t is_lf = vceqq_u8(chunk, lf);
-    uint8x16_t is_vt = vceqq_u8(chunk, vt);
-    uint8x16_t is_ff = vceqq_u8(chunk, ff);
-    uint8x16_t is_cr = vceqq_u8(chunk, cr);
-
-    uint8x16_t is_blank = vorrq_u8(is_space, is_tab);
-    is_blank = vorrq_u8(is_blank, is_lf);
-    is_blank = vorrq_u8(is_blank, is_vt);
-    is_blank = vorrq_u8(is_blank, is_ff);
-    is_blank = vorrq_u8(is_blank, is_cr);
-
-    if (vminvq_u8(is_blank) == 0) {
-      for (size_t j = 0; j < 16; j++) {
-        unsigned char c = ptr[i + j];
-        if (c >= 0x80) {
-          *non_ascii_pos = ptr + i + j;
-          return false;
-        }
-        if (!is_ascii_blank_char(c)) {
-          return false;
-        }
-      }
-    }
-  }
-
-  for (; i < len; i++) {
-    unsigned char c = ptr[i];
-    if (c >= 0x80) {
-      *non_ascii_pos = ptr + i;
-      return false;
-    }
-    if (!is_ascii_blank_char(c)) {
       return false;
     }
   }
 
-  return true;
+  return scan_ascii_blank_or_null(ptr + i, len - i, non_ascii_pos);
 }
 #endif
 
-static bool check_blank_scalar(const unsigned char *ptr, size_t len, const unsigned char **non_ascii_pos) {
-  for (size_t i = 0; i < len; i++) {
-    unsigned char c = ptr[i];
+#if defined(__ARM_NEON) && defined(__aarch64__)
+static bool check_blank_neon(const unsigned char *ptr, size_t len,
+                             const unsigned char **non_ascii_pos) {
+  const uint8x16_t ws_base = vdupq_n_u8(ASCII_WS_RANGE_MIN);
+  const uint8x16_t four = vdupq_n_u8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
+  const uint8x16_t space = vdupq_n_u8(ASCII_WS_SPACE);
 
-    if (c >= 0x80) {
-      *non_ascii_pos = ptr + i;
-      return false;
-    }
+  size_t i = 0;
+  for (; i + 15 < len; i += 16) {
+    uint8x16_t chunk = vld1q_u8(ptr + i);
+    uint8x16_t adjusted = vsubq_u8(chunk, ws_base);
+    uint8x16_t in_range = vceqq_u8(vminq_u8(adjusted, four), adjusted);
+    uint8x16_t is_sp = vceqq_u8(chunk, space);
+    uint8x16_t is_blank = vorrq_u8(in_range, is_sp);
 
-    if (!is_ascii_blank_char(c)) {
-      return false;
+    if (vminvq_u8(is_blank) == 0) {
+      if (!scan_ascii_blank(ptr + i, 16, non_ascii_pos)) return false;
     }
   }
 
-  return true;
+  return scan_ascii_blank(ptr + i, len - i, non_ascii_pos);
 }
+
+static bool check_ascii_blank_neon(const unsigned char *ptr, size_t len,
+                                   const unsigned char **non_ascii_pos) {
+  const uint8x16_t ws_base = vdupq_n_u8(ASCII_WS_RANGE_MIN);
+  const uint8x16_t four = vdupq_n_u8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
+  const uint8x16_t space = vdupq_n_u8(ASCII_WS_SPACE);
+  const uint8x16_t zero = vdupq_n_u8(0);
+
+  size_t i = 0;
+  for (; i + 15 < len; i += 16) {
+    uint8x16_t chunk = vld1q_u8(ptr + i);
+    uint8x16_t adjusted = vsubq_u8(chunk, ws_base);
+    uint8x16_t in_range = vceqq_u8(vminq_u8(adjusted, four), adjusted);
+    uint8x16_t is_sp = vceqq_u8(chunk, space);
+    uint8x16_t is_null = vceqq_u8(chunk, zero);
+    uint8x16_t is_blank = vorrq_u8(vorrq_u8(in_range, is_sp), is_null);
+
+    if (vminvq_u8(is_blank) == 0) {
+      if (!scan_ascii_blank_or_null(ptr + i, 16, non_ascii_pos)) return false;
+    }
+  }
+
+  return scan_ascii_blank_or_null(ptr + i, len - i, non_ascii_pos);
+}
+#endif
+
+#if !defined(__AVX2__) && !defined(__SSE2__) && !(defined(__ARM_NEON) && defined(__aarch64__))
+static bool check_blank_scalar(const unsigned char *ptr, size_t len,
+                               const unsigned char **non_ascii_pos) {
+  return scan_ascii_blank(ptr, len, non_ascii_pos);
+}
+
+static bool check_ascii_blank_scalar(const unsigned char *ptr, size_t len,
+                                     const unsigned char **non_ascii_pos) {
+  return scan_ascii_blank_or_null(ptr, len, non_ascii_pos);
+}
+#endif
 
 static VALUE rb_str_blank(VALUE str) {
   long len = RSTRING_LEN(str);
-  if (len == 0) {
-    return Qtrue;
-  }
+  if (len == 0) return Qtrue;
 
   const unsigned char *ptr = (const unsigned char *)RSTRING_PTR(str);
   const unsigned char *end = ptr + len;
@@ -297,34 +269,25 @@ static VALUE rb_str_blank(VALUE str) {
     bool is_blank = false;
 
 #ifdef __AVX2__
-    is_blank = check_blank_avx2(ptr, len, &non_ascii_pos);
+    is_blank = check_blank_avx2(ptr, (size_t)len, &non_ascii_pos);
 #elif defined(__SSE2__)
-    is_blank = check_blank_sse2(ptr, len, &non_ascii_pos);
-#elif defined(__ARM_NEON)
-    is_blank = check_blank_neon(ptr, len, &non_ascii_pos);
+    is_blank = check_blank_sse2(ptr, (size_t)len, &non_ascii_pos);
+#elif defined(__ARM_NEON) && defined(__aarch64__)
+    is_blank = check_blank_neon(ptr, (size_t)len, &non_ascii_pos);
 #else
-    is_blank = check_blank_scalar(ptr, len, &non_ascii_pos);
+    is_blank = check_blank_scalar(ptr, (size_t)len, &non_ascii_pos);
 #endif
 
-    if (is_blank) {
-      return Qtrue;
-    }
+    if (is_blank) return Qtrue;
+    if (non_ascii_pos == NULL) return Qfalse;
 
-    if (non_ascii_pos == NULL) {
-      return Qfalse;
-    }
-
-    ptr = (const unsigned char *)non_ascii_pos;
+    ptr = non_ascii_pos;
   }
 
-  while ((const char *)ptr < (const char *)end) {
+  while (ptr < end) {
     int clen;
     unsigned int codepoint = rb_enc_codepoint_len((const char *)ptr, (const char *)end, &clen, enc);
-
-    if (!is_unicode_blank(codepoint)) {
-      return Qfalse;
-    }
-
+    if (!is_unicode_blank(codepoint)) return Qfalse;
     ptr += clen;
   }
 
@@ -333,39 +296,36 @@ static VALUE rb_str_blank(VALUE str) {
 
 static VALUE rb_str_ascii_blank(VALUE str) {
   long len = RSTRING_LEN(str);
-  if (len == 0) {
-    return Qtrue;
-  }
+  if (len == 0) return Qtrue;
 
-  const char *ptr = RSTRING_PTR(str);
-  const char *end = ptr + len;
+  const unsigned char *ptr = (const unsigned char *)RSTRING_PTR(str);
+  const unsigned char *end = ptr + len;
   rb_encoding *enc = STR_ENC_GET(str);
 
   if (rb_enc_asciicompat(enc)) {
-    for (; ptr < end; ptr++) {
-      unsigned char c = (unsigned char)*ptr;
+    const unsigned char *non_ascii_pos = NULL;
+    bool is_blank = false;
 
-      if (c >= 0x80) {
-        goto FULL_CHECK;
-      }
+#ifdef __AVX2__
+    is_blank = check_ascii_blank_avx2(ptr, (size_t)len, &non_ascii_pos);
+#elif defined(__SSE2__)
+    is_blank = check_ascii_blank_sse2(ptr, (size_t)len, &non_ascii_pos);
+#elif defined(__ARM_NEON) && defined(__aarch64__)
+    is_blank = check_ascii_blank_neon(ptr, (size_t)len, &non_ascii_pos);
+#else
+    is_blank = check_ascii_blank_scalar(ptr, (size_t)len, &non_ascii_pos);
+#endif
 
-      if (!rb_isspace(c) && c != 0) {
-        return Qfalse;
-      }
-    }
+    if (is_blank) return Qtrue;
+    if (non_ascii_pos == NULL) return Qfalse;
 
-    return Qtrue;
+    ptr = non_ascii_pos;
   }
 
-FULL_CHECK:;
   while (ptr < end) {
     int clen;
-    unsigned int codepoint = rb_enc_codepoint_len(ptr, end, &clen, enc);
-
-    if (codepoint != 0 && !rb_isspace(codepoint)) {
-      return Qfalse;
-    }
-
+    unsigned int codepoint = rb_enc_codepoint_len((const char *)ptr, (const char *)end, &clen, enc);
+    if (codepoint != 0 && !rb_isspace(codepoint)) return Qfalse;
     ptr += clen;
   }
 
