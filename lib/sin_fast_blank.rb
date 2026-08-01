@@ -12,11 +12,8 @@ when 'jruby'
 
   Java::sin_fast_blank::SinFastBlankLibrary.new.load(JRuby.runtime, false)
 else
-  if RUBY_PLATFORM.include?('darwin')
-    require 'sin_fast_blank/sin_fast_blank.bundle'
-  else
-    require 'sin_fast_blank/sin_fast_blank.so'
-  end
+  # The extension-less require lets Ruby resolve the platform-specific shared library suffix (.bundle on macOS, .so elsewhere) via DLEXT.
+  require 'sin_fast_blank/sin_fast_blank'
 end
 
 require 'sin_fast_blank/version'
