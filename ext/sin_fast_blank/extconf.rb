@@ -22,4 +22,4 @@ end
 
 $CFLAGS << ' -O3 -funroll-loops'
 
-create_makefile 'sin_fast_blank'
+create_makefile 'sin_fast_blank/sin_fast_blank'
