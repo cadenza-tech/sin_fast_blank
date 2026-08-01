@@ -2,7 +2,8 @@
 #include <ruby/encoding.h>
 #include <stdbool.h>
 
-#if defined(__SSE2__)
+/* MSVC does not define __SSE2__, but SSE2 is part of the x64 ABI and of 32-bit /arch:SSE2 builds. */
+#if defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
 #define SIN_FAST_BLANK_SSE2 1
 #endif
 
@@ -29,6 +30,19 @@
 #if defined(__ARM_NEON) && defined(__aarch64__)
 #define SIN_FAST_BLANK_NEON 1
 #include <arm_neon.h>
+#endif
+
+#if defined(SIN_FAST_BLANK_SSE2) || defined(SIN_FAST_BLANK_AVX2)
+#if defined(_MSC_VER) && !defined(__clang__)
+#include <intrin.h>
+static inline int count_trailing_zeros(unsigned int value) {
+  unsigned long index;
+  _BitScanForward(&index, value);
+  return (int)index;
+}
+#else
+static inline int count_trailing_zeros(unsigned int value) { return __builtin_ctz(value); }
+#endif
 #endif
 
 #define STR_ENC_GET(str) rb_enc_from_index(ENCODING_GET(str))
@@ -121,7 +135,7 @@ SIN_FAST_BLANK_AVX2_TARGET static bool check_blank_avx2(const unsigned char* ptr
 
     int mask = _mm256_movemask_epi8(is_blank);
     if (mask != -1) {
-      int first = __builtin_ctz(~mask);
+      int first = count_trailing_zeros(~(unsigned int)mask);
       unsigned char c = ptr[i + first];
       if (c >= 0x80) {
         *non_ascii_pos = ptr + i + first;
@@ -150,7 +164,7 @@ SIN_FAST_BLANK_AVX2_TARGET static bool check_ascii_blank_avx2(const unsigned cha
 
     int mask = _mm256_movemask_epi8(is_blank);
     if (mask != -1) {
-      int first = __builtin_ctz(~mask);
+      int first = count_trailing_zeros(~(unsigned int)mask);
       unsigned char c = ptr[i + first];
       if (c >= 0x80) {
         *non_ascii_pos = ptr + i + first;
@@ -179,7 +193,7 @@ static bool check_blank_sse2(const unsigned char* ptr, size_t len, const unsigne
 
     int mask = _mm_movemask_epi8(is_blank);
     if (mask != 0xFFFF) {
-      int first = __builtin_ctz(~mask & 0xFFFF);
+      int first = count_trailing_zeros((unsigned int)(~mask & 0xFFFF));
       unsigned char c = ptr[i + first];
       if (c >= 0x80) {
         *non_ascii_pos = ptr + i + first;
@@ -208,7 +222,7 @@ static bool check_ascii_blank_sse2(const unsigned char* ptr, size_t len, const u
 
     int mask = _mm_movemask_epi8(is_blank);
     if (mask != 0xFFFF) {
-      int first = __builtin_ctz(~mask & 0xFFFF);
+      int first = count_trailing_zeros((unsigned int)(~mask & 0xFFFF));
       unsigned char c = ptr[i + first];
       if (c >= 0x80) {
         *non_ascii_pos = ptr + i + first;
