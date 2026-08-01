@@ -7,9 +7,10 @@ end
 
 case RUBY_ENGINE
 when 'jruby'
+  require 'jruby'
   require 'sin_fast_blank/sin_fast_blank.jar'
 
-  JRuby::Util.load_ext('sin_fast_blank.SinFastBlankLibrary')
+  Java::sin_fast_blank::SinFastBlankLibrary.new.load(JRuby.runtime, false)
 else
   if RUBY_PLATFORM.include?('darwin')
     require 'sin_fast_blank/sin_fast_blank.bundle'

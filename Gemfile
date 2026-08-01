@@ -7,10 +7,11 @@ gemspec
 gem 'activesupport'
 gem 'benchmark-ips'
 gem 'fast_blank'
-gem 'json', '~> 2.7.6'
-if RUBY_ENGINE == 'truffleruby'
-  gem 'minitest', '>= 5.15', '< 5.26'
+if RUBY_ENGINE == 'truffleruby' && RUBY_VERSION < '3.3'
+  gem 'json', '~> 2.7.6'
+  gem 'minitest', '< 5.26.2'
 else
+  gem 'json'
   gem 'minitest'
 end
 gem 'rake'
