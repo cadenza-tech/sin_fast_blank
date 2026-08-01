@@ -1,13 +1,33 @@
 #include <ruby.h>
 #include <ruby/encoding.h>
 #include <stdbool.h>
-#ifdef __SSE2__
+
+#if defined(__SSE2__)
+#define SIN_FAST_BLANK_SSE2 1
+#endif
+
+/*
+ * __AVX2__: the user opted in with -mavx2/-march=native, so every AVX2 helper can be compiled directly.
+ * HAVE_AVX2_RUNTIME_DISPATCH (from extconf.rb): only the helpers marked with __attribute__((target("avx2"))) use AVX2 and
+ * Init_sin_fast_blank selects them via __builtin_cpu_supports, so the binary stays safe on CPUs without AVX2.
+ */
+#if defined(__AVX2__)
+#define SIN_FAST_BLANK_AVX2 1
+#define SIN_FAST_BLANK_AVX2_TARGET
+#elif defined(HAVE_AVX2_RUNTIME_DISPATCH) && defined(SIN_FAST_BLANK_SSE2) && (defined(__GNUC__) || defined(__clang__))
+#define SIN_FAST_BLANK_AVX2 1
+#define SIN_FAST_BLANK_AVX2_DISPATCH 1
+#define SIN_FAST_BLANK_AVX2_TARGET __attribute__((target("avx2")))
+#endif
+
+#if defined(SIN_FAST_BLANK_SSE2)
 #include <emmintrin.h>
 #endif
-#ifdef __AVX2__
+#if defined(SIN_FAST_BLANK_AVX2)
 #include <immintrin.h>
 #endif
 #if defined(__ARM_NEON) && defined(__aarch64__)
+#define SIN_FAST_BLANK_NEON 1
 #include <arm_neon.h>
 #endif
 
@@ -85,8 +105,8 @@ static inline bool scan_ascii_blank_or_null(const unsigned char* ptr, size_t len
   return true;
 }
 
-#ifdef __AVX2__
-static bool check_blank_avx2(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
+#if defined(SIN_FAST_BLANK_AVX2)
+SIN_FAST_BLANK_AVX2_TARGET static bool check_blank_avx2(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
   const __m256i ws_base = _mm256_set1_epi8(ASCII_WS_RANGE_MIN);
   const __m256i four = _mm256_set1_epi8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
   const __m256i space = _mm256_set1_epi8(ASCII_WS_SPACE);
@@ -113,7 +133,7 @@ static bool check_blank_avx2(const unsigned char* ptr, size_t len, const unsigne
   return scan_ascii_blank(ptr + i, len - i, non_ascii_pos);
 }
 
-static bool check_ascii_blank_avx2(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
+SIN_FAST_BLANK_AVX2_TARGET static bool check_ascii_blank_avx2(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
   const __m256i ws_base = _mm256_set1_epi8(ASCII_WS_RANGE_MIN);
   const __m256i four = _mm256_set1_epi8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
   const __m256i space = _mm256_set1_epi8(ASCII_WS_SPACE);
@@ -143,7 +163,7 @@ static bool check_ascii_blank_avx2(const unsigned char* ptr, size_t len, const u
 }
 #endif
 
-#ifdef __SSE2__
+#if defined(SIN_FAST_BLANK_SSE2)
 static bool check_blank_sse2(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
   const __m128i ws_base = _mm_set1_epi8(ASCII_WS_RANGE_MIN);
   const __m128i four = _mm_set1_epi8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
@@ -201,7 +221,7 @@ static bool check_ascii_blank_sse2(const unsigned char* ptr, size_t len, const u
 }
 #endif
 
-#if defined(__ARM_NEON) && defined(__aarch64__)
+#if defined(SIN_FAST_BLANK_NEON)
 static bool check_blank_neon(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
   const uint8x16_t ws_base = vdupq_n_u8(ASCII_WS_RANGE_MIN);
   const uint8x16_t four = vdupq_n_u8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
@@ -247,7 +267,7 @@ static bool check_ascii_blank_neon(const unsigned char* ptr, size_t len, const u
 }
 #endif
 
-#if !defined(__AVX2__) && !defined(__SSE2__) && !(defined(__ARM_NEON) && defined(__aarch64__))
+#if !defined(SIN_FAST_BLANK_AVX2) && !defined(SIN_FAST_BLANK_SSE2) && !defined(SIN_FAST_BLANK_NEON)
 static bool check_blank_scalar(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
   return scan_ascii_blank(ptr, len, non_ascii_pos);
 }
@@ -256,6 +276,42 @@ static bool check_ascii_blank_scalar(const unsigned char* ptr, size_t len, const
   return scan_ascii_blank_or_null(ptr, len, non_ascii_pos);
 }
 #endif
+
+#if defined(SIN_FAST_BLANK_AVX2_DISPATCH)
+typedef bool (*blank_check_func)(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos);
+
+/* Written once by Init_sin_fast_blank before the methods become callable, read-only afterwards. */
+static blank_check_func check_blank_dispatch = check_blank_sse2;
+static blank_check_func check_ascii_blank_dispatch = check_ascii_blank_sse2;
+#endif
+
+static inline bool check_blank(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
+#if defined(SIN_FAST_BLANK_AVX2_DISPATCH)
+  return check_blank_dispatch(ptr, len, non_ascii_pos);
+#elif defined(SIN_FAST_BLANK_AVX2)
+  return check_blank_avx2(ptr, len, non_ascii_pos);
+#elif defined(SIN_FAST_BLANK_SSE2)
+  return check_blank_sse2(ptr, len, non_ascii_pos);
+#elif defined(SIN_FAST_BLANK_NEON)
+  return check_blank_neon(ptr, len, non_ascii_pos);
+#else
+  return check_blank_scalar(ptr, len, non_ascii_pos);
+#endif
+}
+
+static inline bool check_ascii_blank(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
+#if defined(SIN_FAST_BLANK_AVX2_DISPATCH)
+  return check_ascii_blank_dispatch(ptr, len, non_ascii_pos);
+#elif defined(SIN_FAST_BLANK_AVX2)
+  return check_ascii_blank_avx2(ptr, len, non_ascii_pos);
+#elif defined(SIN_FAST_BLANK_SSE2)
+  return check_ascii_blank_sse2(ptr, len, non_ascii_pos);
+#elif defined(SIN_FAST_BLANK_NEON)
+  return check_ascii_blank_neon(ptr, len, non_ascii_pos);
+#else
+  return check_ascii_blank_scalar(ptr, len, non_ascii_pos);
+#endif
+}
 
 static VALUE rb_str_blank(VALUE str) {
   long len = RSTRING_LEN(str);
@@ -267,19 +323,8 @@ static VALUE rb_str_blank(VALUE str) {
 
   if (rb_enc_asciicompat(enc)) {
     const unsigned char* non_ascii_pos = NULL;
-    bool is_blank = false;
 
-#ifdef __AVX2__
-    is_blank = check_blank_avx2(ptr, (size_t)len, &non_ascii_pos);
-#elif defined(__SSE2__)
-    is_blank = check_blank_sse2(ptr, (size_t)len, &non_ascii_pos);
-#elif defined(__ARM_NEON) && defined(__aarch64__)
-    is_blank = check_blank_neon(ptr, (size_t)len, &non_ascii_pos);
-#else
-    is_blank = check_blank_scalar(ptr, (size_t)len, &non_ascii_pos);
-#endif
-
-    if (is_blank) return Qtrue;
+    if (check_blank(ptr, (size_t)len, &non_ascii_pos)) return Qtrue;
     if (non_ascii_pos == NULL) return Qfalse;
 
     ptr = non_ascii_pos;
@@ -305,19 +350,8 @@ static VALUE rb_str_ascii_blank(VALUE str) {
 
   if (rb_enc_asciicompat(enc)) {
     const unsigned char* non_ascii_pos = NULL;
-    bool is_blank = false;
 
-#ifdef __AVX2__
-    is_blank = check_ascii_blank_avx2(ptr, (size_t)len, &non_ascii_pos);
-#elif defined(__SSE2__)
-    is_blank = check_ascii_blank_sse2(ptr, (size_t)len, &non_ascii_pos);
-#elif defined(__ARM_NEON) && defined(__aarch64__)
-    is_blank = check_ascii_blank_neon(ptr, (size_t)len, &non_ascii_pos);
-#else
-    is_blank = check_ascii_blank_scalar(ptr, (size_t)len, &non_ascii_pos);
-#endif
-
-    if (is_blank) return Qtrue;
+    if (check_ascii_blank(ptr, (size_t)len, &non_ascii_pos)) return Qtrue;
     if (non_ascii_pos == NULL) return Qfalse;
 
     ptr = non_ascii_pos;
@@ -334,6 +368,13 @@ static VALUE rb_str_ascii_blank(VALUE str) {
 }
 
 void Init_sin_fast_blank(void) {
+#if defined(SIN_FAST_BLANK_AVX2_DISPATCH)
+  if (__builtin_cpu_supports("avx2")) {
+    check_blank_dispatch = check_blank_avx2;
+    check_ascii_blank_dispatch = check_ascii_blank_avx2;
+  }
+#endif
+
   rb_define_method(rb_cString, "blank?", rb_str_blank, 0);
   rb_define_method(rb_cString, "ascii_blank?", rb_str_ascii_blank, 0);
 }
