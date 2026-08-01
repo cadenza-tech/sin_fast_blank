@@ -152,6 +152,11 @@ Style/NumericPredicate:
   Enabled: true
   EnforcedStyle: comparison
 
+# https://docs.rubocop.org/rubocop/latest/cops_style.html#styleoneclassperfile
+Style/OneClassPerFile:
+  Exclude:
+    - 'script/benchmark_helper.rb'
+
 # https://docs.rubocop.org/rubocop/latest/cops_style.html#styleraiseargs
 Style/RaiseArgs:
   Enabled: true
