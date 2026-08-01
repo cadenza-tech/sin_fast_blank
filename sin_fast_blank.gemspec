@@ -24,9 +24,6 @@ Gem::Specification.new do |spec|
   }
 
   spec.required_ruby_version = '>= 2.3.0'
-  spec.metadata['required_jruby_version'] = '>= 9.3.0.0'
-  spec.metadata['required_truffleruby_version'] = '>= 22.0.0'
-  spec.metadata['required_truffleruby+graalvm_version'] = '>= 22.0.0'
 
   gemspec = File.basename(__FILE__)
   spec.files = IO.popen(%w[git ls-files]) do |ls|
