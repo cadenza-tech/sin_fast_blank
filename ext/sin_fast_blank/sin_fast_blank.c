@@ -353,6 +353,19 @@ static inline bool check_ascii_blank(const unsigned char* ptr, size_t len, const
 #endif
 }
 
+/*
+ * Reached when the scanner cannot decode the bytes ahead. ActiveSupport's regexp never rescans: it trusts the code range Ruby cached on
+ * the string, so it raises only for a string Ruby itself calls broken. Ruby's Big5-HKSCS, Big5-UAO, CP950 and CP951 transcoders emit
+ * byte sequences their own scanner rejects while the code range still reads valid ('À'.encode('Big5-HKSCS')), and there ActiveSupport
+ * answers "not blank" rather than raising. Reading the cached code range costs nothing; computing an uncomputed one would scan the
+ * whole string, give up the early exit this loop exists for, and only ever come out broken anyway, since it runs the decode that just
+ * failed here.
+ */
+static VALUE blank_undecodable(VALUE str, rb_encoding* enc) {
+  if (ENC_CODERANGE(str) == ENC_CODERANGE_VALID) return Qfalse;
+  rb_raise(rb_eArgError, "invalid byte sequence in %s", rb_enc_name(enc));
+}
+
 static VALUE rb_str_blank(VALUE str) {
   long len = RSTRING_LEN(str);
   if (len == 0) return Qtrue;
@@ -372,10 +385,11 @@ static VALUE rb_str_blank(VALUE str) {
 
   bool is_unicode = is_unicode_encoding(enc);
   while (ptr < end) {
-    int clen;
-    unsigned int codepoint = rb_enc_codepoint_len((const char*)ptr, (const char*)end, &clen, enc);
+    int clen = rb_enc_precise_mbclen((const char*)ptr, (const char*)end, enc);
+    if (!MBCLEN_CHARFOUND_P(clen)) return blank_undecodable(str, enc);
+    unsigned int codepoint = rb_enc_mbc_to_codepoint((const char*)ptr, (const char*)end, enc);
     if (!is_blank_codepoint(codepoint, enc, is_unicode)) return Qfalse;
-    ptr += clen;
+    ptr += MBCLEN_CHARFOUND_LEN(clen);
   }
 
   return Qtrue;
