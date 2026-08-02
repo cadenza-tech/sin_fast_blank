@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-JRUBY_IMAGE="jruby:9.3.4.0-jdk8"
+JRUBY_IMAGE="jruby:9.1.17.0-jdk"
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "==> Starting JRuby build in Docker container..."
@@ -10,7 +10,7 @@ echo "    Project: ${PROJECT_DIR}"
 
 rm -f "${PROJECT_DIR}/Gemfile.lock"
 
-docker run --rm -v "${PROJECT_DIR}:/app" -w /app "${JRUBY_IMAGE}" bash -c '
+docker run --rm --platform linux/amd64 -v "${PROJECT_DIR}:/app" -w /app "${JRUBY_IMAGE}" bash -c '
   set -euo pipefail
 
   echo "==> Installing dependencies..."
@@ -28,7 +28,7 @@ docker run --rm -v "${PROJECT_DIR}:/app" -w /app "${JRUBY_IMAGE}" bash -c '
 
   echo "==> Installing Ruby dependencies..."
   cd ../../
-  gem install bundler
+  gem install bundler -v "< 2.4"
   bundle install
 
   echo "==> Running tests..."
