@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -31,14 +31,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: clang-format
         run: find ext/sin_fast_blank -name "*.c" -o -name "*.h" | xargs clang-format --style=file --dry-run --Werror
   lint_java:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
