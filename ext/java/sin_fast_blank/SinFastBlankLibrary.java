@@ -9,7 +9,6 @@ import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.load.Library;
 import org.jruby.util.ByteList;
 import org.jruby.util.StringSupport;
-import org.jruby.util.io.EncodingUtils;
 
 public class SinFastBlankLibrary implements Library {
     private static final int MAX_CTYPE_CODEPOINT = 0xFF;
@@ -150,13 +149,15 @@ public class SinFastBlankLibrary implements Library {
         int e = s + byteList.realSize();
         Encoding enc = str.getEncoding();
 
+        /*
+         * This one never raises, because bytes that decode to nothing are no more an ASCII blank
+         * than the characters they failed to form. An ASCII-compatible encoding does not even need
+         * the decoder: a byte of 0x80 or above only ever starts a character whose codepoint is 0x80
+         * or above there, so the first one settles the answer.
+         */
         if (enc.isAsciiCompatible()) {
             for (int i = s; i < e; i++) {
-                byte c = bytes[i];
-                if (c < 0) {
-                    return asciiBlankUnicodeSlow(context, bytes, i, e, enc);
-                }
-                if (!isAsciiBlankOrNull(c)) {
+                if (!isAsciiBlankOrNull(bytes[i])) {
                     return context.fals;
                 }
             }
@@ -176,15 +177,16 @@ public class SinFastBlankLibrary implements Library {
 
     private static IRubyObject asciiBlankUnicodeSlow(
             ThreadContext context, byte[] bytes, int s, int e, Encoding enc) {
-        Ruby runtime = context.runtime;
-        int[] len = {0};
-
         while (s < e) {
-            int codepoint = EncodingUtils.encCodepointLength(runtime, bytes, s, e, len, enc);
+            int length = StringSupport.preciseLength(enc, bytes, s, e);
+            if (!StringSupport.MBCLEN_CHARFOUND_P(length)) {
+                return context.fals;
+            }
+            int codepoint = enc.mbcToCode(bytes, s, e);
             if (codepoint != 0 && !isAsciiSpace(codepoint)) {
                 return context.fals;
             }
-            s += len[0];
+            s += StringSupport.MBCLEN_CHARFOUND_LEN(length);
         }
 
         return context.tru;
