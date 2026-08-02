@@ -400,6 +400,8 @@ $RECYCLE.BIN/
 ext/java/**/*.class
 lib/**/*.bundle
 lib/**/*.so
+# Stray copy from rake compile; the shipped jar in lib/sin_fast_blank stays tracked
+/lib/*.jar
 
 # AI coding assistant instructions and local config; kept per-developer rather than shared.
 .claude/
