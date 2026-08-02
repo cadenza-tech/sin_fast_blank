@@ -131,14 +131,10 @@ static inline bool scan_ascii_blank(const unsigned char* ptr, size_t len, const 
   return true;
 }
 
-static inline bool scan_ascii_blank_or_null(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
+/* No non-ASCII position to report: a byte of 0x80 or above is not an ASCII blank either, so it settles the answer on its own. */
+static inline bool scan_ascii_blank_or_null(const unsigned char* ptr, size_t len) {
   for (size_t i = 0; i < len; i++) {
-    unsigned char c = ptr[i];
-    if (c >= 0x80) {
-      *non_ascii_pos = ptr + i;
-      return false;
-    }
-    if (!is_ascii_blank_or_null_char(c)) {
+    if (!is_ascii_blank_or_null_char(ptr[i])) {
       return false;
     }
   }
@@ -173,7 +169,7 @@ SIN_FAST_BLANK_AVX2_TARGET static bool check_blank_avx2(const unsigned char* ptr
   return scan_ascii_blank(ptr + i, len - i, non_ascii_pos);
 }
 
-SIN_FAST_BLANK_AVX2_TARGET static bool check_ascii_blank_avx2(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
+SIN_FAST_BLANK_AVX2_TARGET static bool check_ascii_blank_avx2(const unsigned char* ptr, size_t len) {
   const __m256i ws_base = _mm256_set1_epi8(ASCII_WS_RANGE_MIN);
   const __m256i four = _mm256_set1_epi8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
   const __m256i space = _mm256_set1_epi8(ASCII_WS_SPACE);
@@ -188,18 +184,10 @@ SIN_FAST_BLANK_AVX2_TARGET static bool check_ascii_blank_avx2(const unsigned cha
     __m256i is_null = _mm256_cmpeq_epi8(chunk, zero);
     __m256i is_blank = _mm256_or_si256(_mm256_or_si256(in_range, is_sp), is_null);
 
-    int mask = _mm256_movemask_epi8(is_blank);
-    if (mask != -1) {
-      int first = count_trailing_zeros(~(unsigned int)mask);
-      unsigned char c = ptr[i + first];
-      if (c >= 0x80) {
-        *non_ascii_pos = ptr + i + first;
-      }
-      return false;
-    }
+    if (_mm256_movemask_epi8(is_blank) != -1) return false;
   }
 
-  return scan_ascii_blank_or_null(ptr + i, len - i, non_ascii_pos);
+  return scan_ascii_blank_or_null(ptr + i, len - i);
 }
 #endif
 
@@ -231,7 +219,7 @@ static bool check_blank_sse2(const unsigned char* ptr, size_t len, const unsigne
   return scan_ascii_blank(ptr + i, len - i, non_ascii_pos);
 }
 
-static bool check_ascii_blank_sse2(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
+static bool check_ascii_blank_sse2(const unsigned char* ptr, size_t len) {
   const __m128i ws_base = _mm_set1_epi8(ASCII_WS_RANGE_MIN);
   const __m128i four = _mm_set1_epi8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
   const __m128i space = _mm_set1_epi8(ASCII_WS_SPACE);
@@ -246,18 +234,10 @@ static bool check_ascii_blank_sse2(const unsigned char* ptr, size_t len, const u
     __m128i is_null = _mm_cmpeq_epi8(chunk, zero);
     __m128i is_blank = _mm_or_si128(_mm_or_si128(in_range, is_sp), is_null);
 
-    int mask = _mm_movemask_epi8(is_blank);
-    if (mask != 0xFFFF) {
-      int first = count_trailing_zeros((unsigned int)(~mask & 0xFFFF));
-      unsigned char c = ptr[i + first];
-      if (c >= 0x80) {
-        *non_ascii_pos = ptr + i + first;
-      }
-      return false;
-    }
+    if (_mm_movemask_epi8(is_blank) != 0xFFFF) return false;
   }
 
-  return scan_ascii_blank_or_null(ptr + i, len - i, non_ascii_pos);
+  return scan_ascii_blank_or_null(ptr + i, len - i);
 }
 #endif
 
@@ -283,7 +263,7 @@ static bool check_blank_neon(const unsigned char* ptr, size_t len, const unsigne
   return scan_ascii_blank(ptr + i, len - i, non_ascii_pos);
 }
 
-static bool check_ascii_blank_neon(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
+static bool check_ascii_blank_neon(const unsigned char* ptr, size_t len) {
   const uint8x16_t ws_base = vdupq_n_u8(ASCII_WS_RANGE_MIN);
   const uint8x16_t four = vdupq_n_u8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
   const uint8x16_t space = vdupq_n_u8(ASCII_WS_SPACE);
@@ -298,12 +278,10 @@ static bool check_ascii_blank_neon(const unsigned char* ptr, size_t len, const u
     uint8x16_t is_null = vceqq_u8(chunk, zero);
     uint8x16_t is_blank = vorrq_u8(vorrq_u8(in_range, is_sp), is_null);
 
-    if (vminvq_u8(is_blank) == 0) {
-      if (!scan_ascii_blank_or_null(ptr + i, 16, non_ascii_pos)) return false;
-    }
+    if (vminvq_u8(is_blank) == 0) return false;
   }
 
-  return scan_ascii_blank_or_null(ptr + i, len - i, non_ascii_pos);
+  return scan_ascii_blank_or_null(ptr + i, len - i);
 }
 #endif
 
@@ -312,17 +290,16 @@ static bool check_blank_scalar(const unsigned char* ptr, size_t len, const unsig
   return scan_ascii_blank(ptr, len, non_ascii_pos);
 }
 
-static bool check_ascii_blank_scalar(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
-  return scan_ascii_blank_or_null(ptr, len, non_ascii_pos);
-}
+static bool check_ascii_blank_scalar(const unsigned char* ptr, size_t len) { return scan_ascii_blank_or_null(ptr, len); }
 #endif
 
 #if defined(SIN_FAST_BLANK_AVX2_DISPATCH)
 typedef bool (*blank_check_func)(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos);
+typedef bool (*ascii_blank_check_func)(const unsigned char* ptr, size_t len);
 
 /* Written once by Init_sin_fast_blank before the methods become callable, read-only afterwards. */
 static blank_check_func check_blank_dispatch = check_blank_sse2;
-static blank_check_func check_ascii_blank_dispatch = check_ascii_blank_sse2;
+static ascii_blank_check_func check_ascii_blank_dispatch = check_ascii_blank_sse2;
 #endif
 
 static inline bool check_blank(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
@@ -339,17 +316,17 @@ static inline bool check_blank(const unsigned char* ptr, size_t len, const unsig
 #endif
 }
 
-static inline bool check_ascii_blank(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
+static inline bool check_ascii_blank(const unsigned char* ptr, size_t len) {
 #if defined(SIN_FAST_BLANK_AVX2_DISPATCH)
-  return check_ascii_blank_dispatch(ptr, len, non_ascii_pos);
+  return check_ascii_blank_dispatch(ptr, len);
 #elif defined(SIN_FAST_BLANK_AVX2)
-  return check_ascii_blank_avx2(ptr, len, non_ascii_pos);
+  return check_ascii_blank_avx2(ptr, len);
 #elif defined(SIN_FAST_BLANK_SSE2)
-  return check_ascii_blank_sse2(ptr, len, non_ascii_pos);
+  return check_ascii_blank_sse2(ptr, len);
 #elif defined(SIN_FAST_BLANK_NEON)
-  return check_ascii_blank_neon(ptr, len, non_ascii_pos);
+  return check_ascii_blank_neon(ptr, len);
 #else
-  return check_ascii_blank_scalar(ptr, len, non_ascii_pos);
+  return check_ascii_blank_scalar(ptr, len);
 #endif
 }
 
@@ -408,11 +385,7 @@ static VALUE rb_str_ascii_blank(VALUE str) {
    * An ASCII-compatible encoding does not even need the decoder: a byte of 0x80 or above only ever starts a character whose codepoint
    * is 0x80 or above there, so the first one settles the answer.
    */
-  if (rb_enc_asciicompat(enc)) {
-    const unsigned char* non_ascii_pos = NULL;
-
-    return check_ascii_blank(ptr, (size_t)len, &non_ascii_pos) ? Qtrue : Qfalse;
-  }
+  if (rb_enc_asciicompat(enc)) return check_ascii_blank(ptr, (size_t)len) ? Qtrue : Qfalse;
 
   while (ptr < end) {
     int clen = rb_enc_precise_mbclen((const char*)ptr, (const char*)end, enc);
