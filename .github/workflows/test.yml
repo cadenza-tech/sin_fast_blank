@@ -53,7 +53,7 @@ jobs:
           - 'truffleruby+graalvm-head'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -79,7 +79,7 @@ jobs:
           - 'truffleruby+graalvm-34'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -100,7 +100,7 @@ jobs:
           - 'ucrt'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -114,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Rebuild Java extension
         run: |
           docker run --rm -v "${PWD}:/app" -w /app jruby:9.1.17.0-jdk bash -c '
