@@ -35,6 +35,7 @@ class TestBlankEncoding < Minitest::Test
   end.freeze
   UTF16_BLANK_STRING = "　 \t".encode('UTF-16LE').freeze
   UTF16_NON_BLANK_STRING = 'a b'.encode('UTF-16LE').freeze
+  UTF16_ASCII_BLANK_STRING = " \t".encode('UTF-16LE').freeze
   # A lead surrogate with no trail. The byte count stays even, which TruffleRuby's force_encoding insists on.
   UTF16_INVALID_STRING = "\x00\xD8".force_encoding('UTF-16LE').freeze
   # ActiveSupport matches [[:space:]] against the encoding's own ctype table, the same table
@@ -117,21 +118,11 @@ class TestBlankEncoding < Minitest::Test
     end
   end
 
-  def test_invalid_byte_sequences_raise_argument_error_for_ascii_blank
-    ["\xFF", " \xFF"].each do |string|
-      assert_raises(ArgumentError, describe(string)) { string.ascii_blank? }
-    end
-  end
-
   # ActiveSupport raises ArgumentError here because its regexp validates the whole string,
   # while SinFastBlank keeps fast_blank's early exit: the leading non-blank ASCII character
   # decides the result before the invalid byte is ever examined.
   def test_invalid_byte_sequence_after_non_blank_ascii_returns_false
     refute_predicate("a\xFF", :blank?)
-  end
-
-  def test_invalid_byte_sequence_after_non_blank_ascii_returns_false_for_ascii_blank
-    refute_predicate("a\xFF", :ascii_blank?)
   end
 
   # Ruby's Big5 transcoders emit byte sequences their own scanner rejects while the code range still
@@ -140,6 +131,21 @@ class TestBlankEncoding < Minitest::Test
   def test_transcoder_only_byte_sequence_matches_activesupport
     assert_equal(transcoder_only_string.as_blank?, transcoder_only_string.blank?, describe(transcoder_only_string))
     refute_predicate(transcoder_only_string, :blank?)
+  end
+
+  # Reaches ascii_blank?'s decoding loop, which an ASCII-compatible encoding never needs.
+  # The blank string is refuted because an ideographic space is blank without being an ASCII blank.
+  def test_utf16_ascii_blank_detection
+    assert_predicate(UTF16_ASCII_BLANK_STRING, :ascii_blank?)
+    refute_predicate(UTF16_BLANK_STRING, :ascii_blank?)
+  end
+
+  # Undecodable bytes are not ASCII blanks whether or not they form a character, so ascii_blank?
+  # answers instead of raising, wherever they sit.
+  def test_invalid_byte_sequences_return_false_for_ascii_blank
+    ["\xFF", " \xFF", "a\xFF", "\x82".force_encoding('Shift_JIS'), transcoder_only_string, UTF16_INVALID_STRING].each do |string|
+      refute_predicate(string, :ascii_blank?, describe(string))
+    end
   end
 
   private
