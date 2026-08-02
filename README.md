@@ -74,6 +74,8 @@ require 'sin_fast_blank'
 ' abc '.ascii_blank? # => false
 ```
 
+Only ASCII whitespace counts, so `String#ascii_blank?` never raises: bytes that form no character are not ASCII whitespace either, and `"\xFF".ascii_blank?` simply returns `false`.
+
 ## Benchmark
 
 SinFastBlank's String#blank? is about 1.8-15.8x faster than FastBlank's String#blank_as? and about 1.4-27.5x faster than ActiveSupport's String#blank?.
