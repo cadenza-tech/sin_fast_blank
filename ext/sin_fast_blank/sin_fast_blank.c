@@ -1,6 +1,7 @@
 #include <ruby.h>
 #include <ruby/encoding.h>
 #include <stdbool.h>
+#include <string.h>
 
 /* MSVC does not define __SSE2__, but SSE2 is part of the x64 ABI and of 32-bit /arch:SSE2 builds. */
 #if defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
@@ -50,6 +51,7 @@ static inline int count_trailing_zeros(unsigned int value) { return __builtin_ct
 #define ASCII_WS_RANGE_MIN 0x09
 #define ASCII_WS_RANGE_MAX 0x0d
 #define ASCII_WS_SPACE 0x20
+#define MAX_CTYPE_CODEPOINT 0xFF
 
 static inline bool is_ascii_blank_char(unsigned char c) { return (c >= ASCII_WS_RANGE_MIN && c <= ASCII_WS_RANGE_MAX) || c == ASCII_WS_SPACE; }
 
@@ -88,6 +90,30 @@ static inline bool is_unicode_blank(unsigned int codepoint) {
     default:
       return false;
   }
+}
+
+/*
+ * Matched by name because ONIGENC_IS_UNICODE() reads rb_encoding internals that other Ruby implementations may not expose. Every
+ * Unicode encoding Ruby ships is named UTF-8, UTF-16*, UTF-32*, UTF8-* (the MAC and carrier replicas) or CESU-8.
+ */
+static inline bool is_unicode_encoding(rb_encoding* enc) {
+  const char* name = rb_enc_name(enc);
+  return strncmp(name, "UTF", 3) == 0 || strncmp(name, "CESU", 4) == 0;
+}
+
+/*
+ * ActiveSupport's blank regexp matches [[:space:]] with the ctype table of the string's own encoding, which differs from the Unicode
+ * table for some encodings (e.g. 0x85 is blank in UTF-8 but not in ISO-8859-1 or ASCII-8BIT). rb_enc_isspace() reads that same table.
+ *
+ * Only single-byte codes reach it, and that is not an optimization. TruffleRuby declares it as taking an unsigned char, so a wider
+ * codepoint would be silently truncated, and Emacs-Mule and the stateless ISO-2022-JP variants answer every ctype query for a
+ * multi-byte code with "true" (enc/emacs_mule.c returns code_to_mbclen(code) > 1 regardless of the ctype asked for). Falling back to
+ * the switch loses nothing: in an ASCII-compatible encoding a multi-byte codepoint always starts at 0x8000 or above, past the U+3000
+ * the switch tops out at, so it only ever answers "not blank" there.
+ */
+static inline bool is_blank_codepoint(unsigned int codepoint, rb_encoding* enc, bool is_unicode) {
+  if (is_unicode || codepoint > MAX_CTYPE_CODEPOINT) return is_unicode_blank(codepoint);
+  return rb_enc_isspace(codepoint, enc) != 0;
 }
 
 /* Returns true if all blank. On false, sets *non_ascii_pos if non-ASCII found. NULL if non-blank ASCII found. */
@@ -327,6 +353,19 @@ static inline bool check_ascii_blank(const unsigned char* ptr, size_t len, const
 #endif
 }
 
+/*
+ * Reached when the scanner cannot decode the bytes ahead. ActiveSupport's regexp never rescans: it trusts the code range Ruby cached on
+ * the string, so it raises only for a string Ruby itself calls broken. Ruby's Big5-HKSCS, Big5-UAO, CP950 and CP951 transcoders emit
+ * byte sequences their own scanner rejects while the code range still reads valid ('À'.encode('Big5-HKSCS')), and there ActiveSupport
+ * answers "not blank" rather than raising. Reading the cached code range costs nothing; computing an uncomputed one would scan the
+ * whole string, give up the early exit this loop exists for, and only ever come out broken anyway, since it runs the decode that just
+ * failed here.
+ */
+static VALUE blank_undecodable(VALUE str, rb_encoding* enc) {
+  if (ENC_CODERANGE(str) == ENC_CODERANGE_VALID) return Qfalse;
+  rb_raise(rb_eArgError, "invalid byte sequence in %s", rb_enc_name(enc));
+}
+
 static VALUE rb_str_blank(VALUE str) {
   long len = RSTRING_LEN(str);
   if (len == 0) return Qtrue;
@@ -344,11 +383,13 @@ static VALUE rb_str_blank(VALUE str) {
     ptr = non_ascii_pos;
   }
 
+  bool is_unicode = is_unicode_encoding(enc);
   while (ptr < end) {
-    int clen;
-    unsigned int codepoint = rb_enc_codepoint_len((const char*)ptr, (const char*)end, &clen, enc);
-    if (!is_unicode_blank(codepoint)) return Qfalse;
-    ptr += clen;
+    int clen = rb_enc_precise_mbclen((const char*)ptr, (const char*)end, enc);
+    if (!MBCLEN_CHARFOUND_P(clen)) return blank_undecodable(str, enc);
+    unsigned int codepoint = rb_enc_mbc_to_codepoint((const char*)ptr, (const char*)end, enc);
+    if (!is_blank_codepoint(codepoint, enc, is_unicode)) return Qfalse;
+    ptr += MBCLEN_CHARFOUND_LEN(clen);
   }
 
   return Qtrue;

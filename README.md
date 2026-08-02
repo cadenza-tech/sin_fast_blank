@@ -54,6 +54,10 @@ require 'sin_fast_blank'
 ' abc '.blank? # => false
 ```
 
+The check is encoding-aware: codepoints match the same per-encoding `[[:space:]]` tables that ActiveSupport's regexp uses. This holds on CRuby and JRuby. TruffleRuby's regexp engine consults a different table, so a handful of single-byte cases disagree: it reports `0x85` and `0xA0` as blank in encodings whose ctype table does not, such as `ASCII-8BIT`.
+
+SinFastBlank scans left to right and returns as soon as the result is decided, so it can answer before reaching an invalid byte sequence that ActiveSupport's whole-string regexp would trip over: `"a\xFF".blank?` returns `false` where ActiveSupport raises `ArgumentError`. Once the scan does reach one, `blank?` matches ActiveSupport exactly: it raises `ArgumentError` for a string Ruby itself calls broken, and answers `false` for one whose bytes Ruby's own transcoder produced but its scanner rejects (`'À'.encode('Big5-HKSCS')`), which ActiveSupport does not treat as an error either.
+
 ### String#ascii_blank?
 
 ```ruby

@@ -8,9 +8,12 @@ import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.load.Library;
 import org.jruby.util.ByteList;
+import org.jruby.util.StringSupport;
 import org.jruby.util.io.EncodingUtils;
 
 public class SinFastBlankLibrary implements Library {
+    private static final int MAX_CTYPE_CODEPOINT = 0xFF;
+
     @Override
     public void load(Ruby runtime, boolean wrap) {
         runtime.getString().defineAnnotatedMethods(SinFastBlankLibrary.class);
@@ -33,7 +36,7 @@ public class SinFastBlankLibrary implements Library {
             for (int i = s; i < e; i++) {
                 byte c = bytes[i];
                 if (c < 0) {
-                    return blankUnicodeSlow(context, bytes, i, e, enc);
+                    return blankUnicodeSlow(context, str, bytes, i, e, enc);
                 }
                 if (!isAsciiBlank(c)) {
                     return context.fals;
@@ -42,7 +45,7 @@ public class SinFastBlankLibrary implements Library {
             return context.tru;
         }
 
-        return blankUnicodeSlow(context, bytes, s, e, enc);
+        return blankUnicodeSlow(context, str, bytes, s, e, enc);
     }
 
     private static boolean isAsciiBlank(byte c) {
@@ -82,20 +85,56 @@ public class SinFastBlankLibrary implements Library {
         }
     }
 
-    private static IRubyObject blankUnicodeSlow(
-            ThreadContext context, byte[] bytes, int s, int e, Encoding enc) {
-        Ruby runtime = context.runtime;
-        int[] len = {0};
+    /*
+     * ActiveSupport's blank regexp matches [[:space:]] with the ctype table of the string's own
+     * encoding, which differs from the Unicode table for some encodings (e.g. 0x85 is blank in
+     * UTF-8 but not in ISO-8859-1 or ASCII-8BIT). isSpace() reads that same table.
+     *
+     * Only single-byte codes reach it, and that is not an optimization. Emacs-Mule and the
+     * stateless ISO-2022-JP variants answer every ctype query for a multi-byte code with true
+     * (EmacsMuleEncoding returns codeToMbcLength(code) > 1 whatever ctype is asked for), and wide
+     * GB18030 codepoints arrive negative in a signed int. Falling back to the switch loses
+     * nothing: in an ASCII-compatible encoding a multi-byte codepoint always starts at 0x8000 or
+     * above, past the U+3000 the switch tops out at, so it only ever answers "not blank" there.
+     */
+    private static boolean isBlankCodepoint(int codepoint, Encoding enc) {
+        if (enc.isUnicode() || codepoint < 0 || codepoint > MAX_CTYPE_CODEPOINT) {
+            return isUnicodeBlank(codepoint);
+        }
+        return enc.isSpace(codepoint);
+    }
 
+    private static IRubyObject blankUnicodeSlow(
+            ThreadContext context, RubyString str, byte[] bytes, int s, int e, Encoding enc) {
         while (s < e) {
-            int codepoint = EncodingUtils.encCodepointLength(runtime, bytes, s, e, len, enc);
-            if (!isUnicodeBlank(codepoint)) {
+            int length = StringSupport.preciseLength(enc, bytes, s, e);
+            if (!StringSupport.MBCLEN_CHARFOUND_P(length)) {
+                return blankUndecodable(context, str, enc);
+            }
+            int codepoint = enc.mbcToCode(bytes, s, e);
+            if (!isBlankCodepoint(codepoint, enc)) {
                 return context.fals;
             }
-            s += len[0];
+            s += StringSupport.MBCLEN_CHARFOUND_LEN(length);
         }
 
         return context.tru;
+    }
+
+    /*
+     * Reached when the scanner cannot decode the bytes ahead. ActiveSupport's regexp never rescans:
+     * it trusts the code range Ruby cached on the string, so it raises only for a string Ruby itself
+     * calls broken, and answers "not blank" for one whose transcoder and scanner disagree. Reading
+     * the cached code range costs nothing; computing an uncomputed one would scan the whole string,
+     * give up the early exit this loop exists for, and only ever come out broken anyway, since it
+     * runs the decode that just failed here.
+     */
+    private static IRubyObject blankUndecodable(
+            ThreadContext context, RubyString str, Encoding enc) {
+        if (str.getCodeRange() == StringSupport.CR_VALID) {
+            return context.fals;
+        }
+        throw context.runtime.newArgumentError("invalid byte sequence in " + enc);
     }
 
     @JRubyMethod(name = "ascii_blank?")
