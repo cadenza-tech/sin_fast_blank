@@ -110,3 +110,20 @@ jobs:
         run: bundle exec rake compile
       - name: Run tests
         run: bundle exec rake test
+  verify-jar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Rebuild Java extension
+        run: |
+          docker run --rm -v "${PWD}:/app" -w /app jruby:9.1.17.0-jdk bash -c '
+            set -eu
+            cd ext/java
+            javac -cp /opt/jruby/lib/jruby.jar sin_fast_blank/SinFastBlankLibrary.java
+          '
+      - name: Compare rebuilt classes with committed jar
+        run: |
+          mkdir -p tmp/committed
+          unzip -o -q lib/sin_fast_blank/sin_fast_blank.jar -d tmp/committed
+          diff -r --exclude='*.java' --exclude='META-INF' tmp/committed ext/java
