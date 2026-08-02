@@ -403,20 +403,23 @@ static VALUE rb_str_ascii_blank(VALUE str) {
   const unsigned char* end = ptr + len;
   rb_encoding* enc = STR_ENC_GET(str);
 
+  /*
+   * This one never raises, because bytes that decode to nothing are no more an ASCII blank than the characters they failed to form.
+   * An ASCII-compatible encoding does not even need the decoder: a byte of 0x80 or above only ever starts a character whose codepoint
+   * is 0x80 or above there, so the first one settles the answer.
+   */
   if (rb_enc_asciicompat(enc)) {
     const unsigned char* non_ascii_pos = NULL;
 
-    if (check_ascii_blank(ptr, (size_t)len, &non_ascii_pos)) return Qtrue;
-    if (non_ascii_pos == NULL) return Qfalse;
-
-    ptr = non_ascii_pos;
+    return check_ascii_blank(ptr, (size_t)len, &non_ascii_pos) ? Qtrue : Qfalse;
   }
 
   while (ptr < end) {
-    int clen;
-    unsigned int codepoint = rb_enc_codepoint_len((const char*)ptr, (const char*)end, &clen, enc);
+    int clen = rb_enc_precise_mbclen((const char*)ptr, (const char*)end, enc);
+    if (!MBCLEN_CHARFOUND_P(clen)) return Qfalse;
+    unsigned int codepoint = rb_enc_mbc_to_codepoint((const char*)ptr, (const char*)end, enc);
     if (codepoint != 0 && !rb_isspace(codepoint)) return Qfalse;
-    ptr += clen;
+    ptr += MBCLEN_CHARFOUND_LEN(clen);
   }
 
   return Qtrue;
