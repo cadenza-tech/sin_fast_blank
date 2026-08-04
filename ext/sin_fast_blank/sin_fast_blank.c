@@ -461,6 +461,15 @@ static VALUE rb_str_ascii_blank(VALUE str) {
 }
 
 void Init_sin_fast_blank(void) {
+  /*
+   * Declaring this is a promise, and what backs it is that both methods only ever read the string they are handed: the dispatch pointers
+   * are written in this function and read everywhere else, and the code range is taken from the cache rather than computed, which would
+   * write the result back onto the string. It has to run before the definitions, because what it marks is whatever is defined after it.
+   */
+#ifdef HAVE_RB_EXT_RACTOR_SAFE
+  rb_ext_ractor_safe(true);
+#endif
+
 #if defined(SIN_FAST_BLANK_AVX2_DISPATCH)
   if (__builtin_cpu_supports("avx2")) {
     check_blank_dispatch = check_blank_avx2;

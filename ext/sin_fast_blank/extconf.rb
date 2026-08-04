@@ -36,6 +36,9 @@ unless old_truffleruby
   end
 end
 
+# rb_ext_ractor_safe() arrived in Ruby 3.0 and the gem still supports 2.3, so Init_sin_fast_blank guards its call on this.
+have_func('rb_ext_ractor_safe')
+
 $CFLAGS << ' -O3 -funroll-loops'
 
 create_makefile 'sin_fast_blank/sin_fast_blank'
