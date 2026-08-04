@@ -35,6 +35,8 @@ gem install sin_fast_blank
 
 ## Usage
 
+Both methods can be called inside non-main Ractors on CRuby 3.0+.
+
 ### String#blank?
 
 SinFastBlank's String#blank? is compatible with ActiveSupport's String#blank?.
