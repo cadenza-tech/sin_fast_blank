@@ -19,6 +19,12 @@ class TestBlankEncoding < Minitest::Test
     ' '.encode('ISO-8859-1'),
     '   '.encode('ISO-8859-1'),
     'a '.encode('ISO-8859-1'),
+    # 0xA0 is space in these ctype tables, so a run longer than a SIMD chunk exercises the vector
+    # scan resumed after the decoded 0xA0 (the entries above and the two-byte sweep keep the
+    # scalar-length shapes covered).
+    "\u00A0#{' ' * 43}\u00A0".encode('ISO-8859-1'),
+    "\u00A0#{' ' * 43}x".encode('ISO-8859-1'),
+    "\u00A0#{' ' * 43}\u00A0".encode('Windows-1252'),
     " \t".encode('US-ASCII'),
     # GB18030 4-byte characters decode to codepoints above INT_MAX; they must reach the blank
     # switch as they are, not narrowed into something the ctype lookup would accept.
@@ -111,7 +117,7 @@ class TestBlankEncoding < Minitest::Test
 
   def test_invalid_byte_sequences_raise_argument_error
     [
-      "\xFF", " \xFF", "\xE3\x80", " \xE3\x80",
+      "\xFF", " \xFF", "\xE3\x80", " \xE3\x80", "\u00A0 \xFF",
       "\x82".force_encoding('Shift_JIS'), " \xA1".force_encoding('EUC-JP'), UTF16_INVALID_STRING
     ].each do |string|
       assert_raises(ArgumentError, describe(string)) { string.blank? }

@@ -21,6 +21,7 @@ class TestBlank < Minitest::Test
   ].freeze
   UTF8_CODEPOINT_MAX = 0xFFFF
   ASCII_CODEPOINT_MAX = 0xFF
+  SIMD_BOUNDARY_LENGTHS = [1, 7, 8, 15, 16, 17, 31, 32, 33, 43, 63, 64, 65, 127, 128, 129].freeze
 
   def test_equivalency
     test_strings = build_test_strings
@@ -32,6 +33,40 @@ class TestBlank < Minitest::Test
 
   def test_null_character
     refute_predicate("\u0000", :blank?)
+  end
+
+  def test_blank_strings_at_simd_boundary_lengths
+    SIMD_BOUNDARY_LENGTHS.each do |length|
+      assert_predicate(' ' * length, :blank?, "length #{length}")
+    end
+  end
+
+  def test_non_blank_edges_at_simd_boundary_lengths
+    SIMD_BOUNDARY_LENGTHS.each do |length|
+      ["x#{' ' * (length - 1)}", "#{' ' * (length - 1)}x"].each do |string|
+        refute_predicate(string, :blank?, "length #{length}: #{string.inspect}")
+      end
+    end
+  end
+
+  def test_mixed_ascii_and_multibyte_equivalency
+    nbsp = 0xA0.chr(Encoding::UTF_8)
+    ideographic_space = 0x3000.chr(Encoding::UTF_8)
+
+    SIMD_BOUNDARY_LENGTHS.each do |length|
+      run = ' ' * length
+      mixed_strings = [
+        "#{nbsp}#{run}",
+        "#{run}#{nbsp}",
+        "#{nbsp}#{run}#{ideographic_space}#{run}",
+        "#{run}#{ideographic_space}#{run}x",
+        "#{nbsp}#{run}x#{run}"
+      ]
+
+      mixed_strings.each do |string|
+        assert_equal(string.as_blank?, string.blank?, string.inspect)
+      end
+    end
   end
 
   private
