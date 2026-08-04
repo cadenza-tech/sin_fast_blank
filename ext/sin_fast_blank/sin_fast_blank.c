@@ -141,156 +141,200 @@ static inline bool scan_ascii_blank_or_null(const unsigned char* ptr, size_t len
   return true;
 }
 
-#if defined(SIN_FAST_BLANK_AVX2)
-SIN_FAST_BLANK_AVX2_TARGET static bool check_blank_avx2(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
-  const __m256i ws_base = _mm256_set1_epi8(ASCII_WS_RANGE_MIN);
-  const __m256i four = _mm256_set1_epi8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
-  const __m256i space = _mm256_set1_epi8(ASCII_WS_SPACE);
+/*
+ * Every SIMD path below has the same shape: a chunk helper answers "is this whole chunk blank?" for one register of bytes, and a
+ * check_*() walks the string chunk by chunk. The blank? helpers also hand back the first non-blank byte when it is non-ASCII, which is
+ * where rb_str_blank() picks the decode up.
+ *
+ * The range test folds 0x09..0x0d into one comparison: the unsigned subtraction wraps every byte below 0x09 up past the span, so
+ * min(c - 0x09, 0x04) == c - 0x09 holds inside the range and nowhere else. Space is compared on its own, and ascii_blank? adds NUL.
+ *
+ * The bytes left over when the length is not a whole number of chunks are covered by re-reading the final chunk at [len - chunk, len),
+ * rather than walking them one at a time. What the re-read repeats is already known to be blank, so it cannot change the answer, and
+ * measuring back from the end keeps the load inside the string. It does need a whole chunk to look back on, which is why each check_*()
+ * hands anything shorter to the scalar scanner before the loop: that guard is what keeps the load in bounds, not a speed heuristic.
+ */
+#if defined(SIN_FAST_BLANK_SSE2)
+static inline bool sse2_chunk_blank(const unsigned char* chunk_ptr, const unsigned char** non_ascii_pos) {
+  const __m128i ws_base = _mm_set1_epi8(ASCII_WS_RANGE_MIN);
+  const __m128i ws_span = _mm_set1_epi8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
+  const __m128i space = _mm_set1_epi8(ASCII_WS_SPACE);
 
-  size_t i = 0;
-  for (; i + 31 < len; i += 32) {
-    __m256i chunk = _mm256_loadu_si256((const __m256i*)(ptr + i));
-    __m256i adjusted = _mm256_sub_epi8(chunk, ws_base);
-    __m256i in_range = _mm256_cmpeq_epi8(_mm256_min_epu8(adjusted, four), adjusted);
-    __m256i is_sp = _mm256_cmpeq_epi8(chunk, space);
-    __m256i is_blank = _mm256_or_si256(in_range, is_sp);
+  __m128i chunk = _mm_loadu_si128((const __m128i*)chunk_ptr);
+  __m128i adjusted = _mm_sub_epi8(chunk, ws_base);
+  __m128i in_range = _mm_cmpeq_epi8(_mm_min_epu8(adjusted, ws_span), adjusted);
+  __m128i is_sp = _mm_cmpeq_epi8(chunk, space);
+  __m128i is_blank = _mm_or_si128(in_range, is_sp);
 
-    int mask = _mm256_movemask_epi8(is_blank);
-    if (mask != -1) {
-      int first = count_trailing_zeros(~(unsigned int)mask);
-      unsigned char c = ptr[i + first];
-      if (c >= 0x80) {
-        *non_ascii_pos = ptr + i + first;
-      }
-      return false;
-    }
+  int mask = _mm_movemask_epi8(is_blank);
+  if (mask == 0xFFFF) return true;
+
+  int first = count_trailing_zeros((unsigned int)(~mask & 0xFFFF));
+  if (chunk_ptr[first] >= 0x80) {
+    *non_ascii_pos = chunk_ptr + first;
   }
-
-  return scan_ascii_blank(ptr + i, len - i, non_ascii_pos);
+  return false;
 }
 
-SIN_FAST_BLANK_AVX2_TARGET static bool check_ascii_blank_avx2(const unsigned char* ptr, size_t len) {
-  const __m256i ws_base = _mm256_set1_epi8(ASCII_WS_RANGE_MIN);
-  const __m256i four = _mm256_set1_epi8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
-  const __m256i space = _mm256_set1_epi8(ASCII_WS_SPACE);
-  const __m256i zero = _mm256_setzero_si256();
+static inline bool sse2_chunk_ascii_blank(const unsigned char* chunk_ptr) {
+  const __m128i ws_base = _mm_set1_epi8(ASCII_WS_RANGE_MIN);
+  const __m128i ws_span = _mm_set1_epi8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
+  const __m128i space = _mm_set1_epi8(ASCII_WS_SPACE);
+
+  __m128i chunk = _mm_loadu_si128((const __m128i*)chunk_ptr);
+  __m128i adjusted = _mm_sub_epi8(chunk, ws_base);
+  __m128i in_range = _mm_cmpeq_epi8(_mm_min_epu8(adjusted, ws_span), adjusted);
+  __m128i is_sp = _mm_cmpeq_epi8(chunk, space);
+  __m128i is_null = _mm_cmpeq_epi8(chunk, _mm_setzero_si128());
+  __m128i is_blank = _mm_or_si128(_mm_or_si128(in_range, is_sp), is_null);
+
+  return _mm_movemask_epi8(is_blank) == 0xFFFF;
+}
+
+static inline bool check_blank_sse2(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
+  if (len < 16) return scan_ascii_blank(ptr, len, non_ascii_pos);
 
   size_t i = 0;
-  for (; i + 31 < len; i += 32) {
-    __m256i chunk = _mm256_loadu_si256((const __m256i*)(ptr + i));
-    __m256i adjusted = _mm256_sub_epi8(chunk, ws_base);
-    __m256i in_range = _mm256_cmpeq_epi8(_mm256_min_epu8(adjusted, four), adjusted);
-    __m256i is_sp = _mm256_cmpeq_epi8(chunk, space);
-    __m256i is_null = _mm256_cmpeq_epi8(chunk, zero);
-    __m256i is_blank = _mm256_or_si256(_mm256_or_si256(in_range, is_sp), is_null);
-
-    if (_mm256_movemask_epi8(is_blank) != -1) return false;
+  for (; i + 16 <= len; i += 16) {
+    if (!sse2_chunk_blank(ptr + i, non_ascii_pos)) return false;
   }
+  if (i == len) return true;
 
-  return scan_ascii_blank_or_null(ptr + i, len - i);
+  return sse2_chunk_blank(ptr + len - 16, non_ascii_pos);
+}
+
+static inline bool check_ascii_blank_sse2(const unsigned char* ptr, size_t len) {
+  if (len < 16) return scan_ascii_blank_or_null(ptr, len);
+
+  size_t i = 0;
+  for (; i + 16 <= len; i += 16) {
+    if (!sse2_chunk_ascii_blank(ptr + i)) return false;
+  }
+  if (i == len) return true;
+
+  return sse2_chunk_ascii_blank(ptr + len - 16);
 }
 #endif
 
-#if defined(SIN_FAST_BLANK_SSE2)
-static bool check_blank_sse2(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
-  const __m128i ws_base = _mm_set1_epi8(ASCII_WS_RANGE_MIN);
-  const __m128i four = _mm_set1_epi8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
-  const __m128i space = _mm_set1_epi8(ASCII_WS_SPACE);
+/* AVX2 implies SSE2 under both macro definitions above, so the sub-32-byte cases can fall back to the 16-byte chunks. */
+#if defined(SIN_FAST_BLANK_AVX2)
+SIN_FAST_BLANK_AVX2_TARGET static inline bool avx2_chunk_blank(const unsigned char* chunk_ptr, const unsigned char** non_ascii_pos) {
+  const __m256i ws_base = _mm256_set1_epi8(ASCII_WS_RANGE_MIN);
+  const __m256i ws_span = _mm256_set1_epi8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
+  const __m256i space = _mm256_set1_epi8(ASCII_WS_SPACE);
 
-  size_t i = 0;
-  for (; i + 15 < len; i += 16) {
-    __m128i chunk = _mm_loadu_si128((const __m128i*)(ptr + i));
-    __m128i adjusted = _mm_sub_epi8(chunk, ws_base);
-    __m128i in_range = _mm_cmpeq_epi8(_mm_min_epu8(adjusted, four), adjusted);
-    __m128i is_sp = _mm_cmpeq_epi8(chunk, space);
-    __m128i is_blank = _mm_or_si128(in_range, is_sp);
+  __m256i chunk = _mm256_loadu_si256((const __m256i*)chunk_ptr);
+  __m256i adjusted = _mm256_sub_epi8(chunk, ws_base);
+  __m256i in_range = _mm256_cmpeq_epi8(_mm256_min_epu8(adjusted, ws_span), adjusted);
+  __m256i is_sp = _mm256_cmpeq_epi8(chunk, space);
+  __m256i is_blank = _mm256_or_si256(in_range, is_sp);
 
-    int mask = _mm_movemask_epi8(is_blank);
-    if (mask != 0xFFFF) {
-      int first = count_trailing_zeros((unsigned int)(~mask & 0xFFFF));
-      unsigned char c = ptr[i + first];
-      if (c >= 0x80) {
-        *non_ascii_pos = ptr + i + first;
-      }
-      return false;
-    }
+  int mask = _mm256_movemask_epi8(is_blank);
+  if (mask == -1) return true;
+
+  int first = count_trailing_zeros(~(unsigned int)mask);
+  if (chunk_ptr[first] >= 0x80) {
+    *non_ascii_pos = chunk_ptr + first;
   }
-
-  return scan_ascii_blank(ptr + i, len - i, non_ascii_pos);
+  return false;
 }
 
-static bool check_ascii_blank_sse2(const unsigned char* ptr, size_t len) {
-  const __m128i ws_base = _mm_set1_epi8(ASCII_WS_RANGE_MIN);
-  const __m128i four = _mm_set1_epi8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
-  const __m128i space = _mm_set1_epi8(ASCII_WS_SPACE);
-  const __m128i zero = _mm_setzero_si128();
+SIN_FAST_BLANK_AVX2_TARGET static inline bool avx2_chunk_ascii_blank(const unsigned char* chunk_ptr) {
+  const __m256i ws_base = _mm256_set1_epi8(ASCII_WS_RANGE_MIN);
+  const __m256i ws_span = _mm256_set1_epi8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
+  const __m256i space = _mm256_set1_epi8(ASCII_WS_SPACE);
+
+  __m256i chunk = _mm256_loadu_si256((const __m256i*)chunk_ptr);
+  __m256i adjusted = _mm256_sub_epi8(chunk, ws_base);
+  __m256i in_range = _mm256_cmpeq_epi8(_mm256_min_epu8(adjusted, ws_span), adjusted);
+  __m256i is_sp = _mm256_cmpeq_epi8(chunk, space);
+  __m256i is_null = _mm256_cmpeq_epi8(chunk, _mm256_setzero_si256());
+  __m256i is_blank = _mm256_or_si256(_mm256_or_si256(in_range, is_sp), is_null);
+
+  return _mm256_movemask_epi8(is_blank) == -1;
+}
+
+SIN_FAST_BLANK_AVX2_TARGET static bool check_blank_avx2(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
+  if (len < 32) return check_blank_sse2(ptr, len, non_ascii_pos);
 
   size_t i = 0;
-  for (; i + 15 < len; i += 16) {
-    __m128i chunk = _mm_loadu_si128((const __m128i*)(ptr + i));
-    __m128i adjusted = _mm_sub_epi8(chunk, ws_base);
-    __m128i in_range = _mm_cmpeq_epi8(_mm_min_epu8(adjusted, four), adjusted);
-    __m128i is_sp = _mm_cmpeq_epi8(chunk, space);
-    __m128i is_null = _mm_cmpeq_epi8(chunk, zero);
-    __m128i is_blank = _mm_or_si128(_mm_or_si128(in_range, is_sp), is_null);
-
-    if (_mm_movemask_epi8(is_blank) != 0xFFFF) return false;
+  for (; i + 32 <= len; i += 32) {
+    if (!avx2_chunk_blank(ptr + i, non_ascii_pos)) return false;
   }
+  if (i == len) return true;
 
-  return scan_ascii_blank_or_null(ptr + i, len - i);
+  return avx2_chunk_blank(ptr + len - 32, non_ascii_pos);
+}
+
+SIN_FAST_BLANK_AVX2_TARGET static bool check_ascii_blank_avx2(const unsigned char* ptr, size_t len) {
+  if (len < 32) return check_ascii_blank_sse2(ptr, len);
+
+  size_t i = 0;
+  for (; i + 32 <= len; i += 32) {
+    if (!avx2_chunk_ascii_blank(ptr + i)) return false;
+  }
+  if (i == len) return true;
+
+  return avx2_chunk_ascii_blank(ptr + len - 32);
 }
 #endif
 
 #if defined(SIN_FAST_BLANK_NEON)
-static bool check_blank_neon(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
+static inline bool neon_chunk_blank(const unsigned char* chunk_ptr, const unsigned char** non_ascii_pos) {
   const uint8x16_t ws_base = vdupq_n_u8(ASCII_WS_RANGE_MIN);
-  const uint8x16_t four = vdupq_n_u8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
+  const uint8x16_t ws_span = vdupq_n_u8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
   const uint8x16_t space = vdupq_n_u8(ASCII_WS_SPACE);
 
+  uint8x16_t chunk = vld1q_u8(chunk_ptr);
+  uint8x16_t adjusted = vsubq_u8(chunk, ws_base);
+  uint8x16_t in_range = vceqq_u8(vminq_u8(adjusted, ws_span), adjusted);
+  uint8x16_t is_sp = vceqq_u8(chunk, space);
+  uint8x16_t is_blank = vorrq_u8(in_range, is_sp);
+
+  if (vminvq_u8(is_blank) != 0) return true;
+
+  /* NEON has no movemask, so the scalar scanner locates the first non-blank byte. It cannot report true here. */
+  return scan_ascii_blank(chunk_ptr, 16, non_ascii_pos);
+}
+
+static inline bool neon_chunk_ascii_blank(const unsigned char* chunk_ptr) {
+  const uint8x16_t ws_base = vdupq_n_u8(ASCII_WS_RANGE_MIN);
+  const uint8x16_t ws_span = vdupq_n_u8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
+  const uint8x16_t space = vdupq_n_u8(ASCII_WS_SPACE);
+
+  uint8x16_t chunk = vld1q_u8(chunk_ptr);
+  uint8x16_t adjusted = vsubq_u8(chunk, ws_base);
+  uint8x16_t in_range = vceqq_u8(vminq_u8(adjusted, ws_span), adjusted);
+  uint8x16_t is_sp = vceqq_u8(chunk, space);
+  uint8x16_t is_null = vceqq_u8(chunk, vdupq_n_u8(0));
+  uint8x16_t is_blank = vorrq_u8(vorrq_u8(in_range, is_sp), is_null);
+
+  return vminvq_u8(is_blank) != 0;
+}
+
+static bool check_blank_neon(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
+  if (len < 16) return scan_ascii_blank(ptr, len, non_ascii_pos);
+
   size_t i = 0;
-  for (; i + 15 < len; i += 16) {
-    uint8x16_t chunk = vld1q_u8(ptr + i);
-    uint8x16_t adjusted = vsubq_u8(chunk, ws_base);
-    uint8x16_t in_range = vceqq_u8(vminq_u8(adjusted, four), adjusted);
-    uint8x16_t is_sp = vceqq_u8(chunk, space);
-    uint8x16_t is_blank = vorrq_u8(in_range, is_sp);
-
-    if (vminvq_u8(is_blank) == 0) {
-      if (!scan_ascii_blank(ptr + i, 16, non_ascii_pos)) return false;
-    }
+  for (; i + 16 <= len; i += 16) {
+    if (!neon_chunk_blank(ptr + i, non_ascii_pos)) return false;
   }
+  if (i == len) return true;
 
-  return scan_ascii_blank(ptr + i, len - i, non_ascii_pos);
+  return neon_chunk_blank(ptr + len - 16, non_ascii_pos);
 }
 
 static bool check_ascii_blank_neon(const unsigned char* ptr, size_t len) {
-  const uint8x16_t ws_base = vdupq_n_u8(ASCII_WS_RANGE_MIN);
-  const uint8x16_t four = vdupq_n_u8(ASCII_WS_RANGE_MAX - ASCII_WS_RANGE_MIN);
-  const uint8x16_t space = vdupq_n_u8(ASCII_WS_SPACE);
-  const uint8x16_t zero = vdupq_n_u8(0);
+  if (len < 16) return scan_ascii_blank_or_null(ptr, len);
 
   size_t i = 0;
-  for (; i + 15 < len; i += 16) {
-    uint8x16_t chunk = vld1q_u8(ptr + i);
-    uint8x16_t adjusted = vsubq_u8(chunk, ws_base);
-    uint8x16_t in_range = vceqq_u8(vminq_u8(adjusted, four), adjusted);
-    uint8x16_t is_sp = vceqq_u8(chunk, space);
-    uint8x16_t is_null = vceqq_u8(chunk, zero);
-    uint8x16_t is_blank = vorrq_u8(vorrq_u8(in_range, is_sp), is_null);
-
-    if (vminvq_u8(is_blank) == 0) return false;
+  for (; i + 16 <= len; i += 16) {
+    if (!neon_chunk_ascii_blank(ptr + i)) return false;
   }
+  if (i == len) return true;
 
-  return scan_ascii_blank_or_null(ptr + i, len - i);
+  return neon_chunk_ascii_blank(ptr + len - 16);
 }
-#endif
-
-#if !defined(SIN_FAST_BLANK_AVX2) && !defined(SIN_FAST_BLANK_SSE2) && !defined(SIN_FAST_BLANK_NEON)
-static bool check_blank_scalar(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
-  return scan_ascii_blank(ptr, len, non_ascii_pos);
-}
-
-static bool check_ascii_blank_scalar(const unsigned char* ptr, size_t len) { return scan_ascii_blank_or_null(ptr, len); }
 #endif
 
 #if defined(SIN_FAST_BLANK_AVX2_DISPATCH)
@@ -312,7 +356,7 @@ static inline bool check_blank(const unsigned char* ptr, size_t len, const unsig
 #elif defined(SIN_FAST_BLANK_NEON)
   return check_blank_neon(ptr, len, non_ascii_pos);
 #else
-  return check_blank_scalar(ptr, len, non_ascii_pos);
+  return scan_ascii_blank(ptr, len, non_ascii_pos);
 #endif
 }
 
@@ -326,7 +370,7 @@ static inline bool check_ascii_blank(const unsigned char* ptr, size_t len) {
 #elif defined(SIN_FAST_BLANK_NEON)
   return check_ascii_blank_neon(ptr, len);
 #else
-  return check_ascii_blank_scalar(ptr, len);
+  return scan_ascii_blank_or_null(ptr, len);
 #endif
 }
 
