@@ -395,7 +395,8 @@ static VALUE rb_str_blank(VALUE str) {
   const unsigned char* end = ptr + len;
   rb_encoding* enc = STR_ENC_GET(str);
 
-  if (rb_enc_asciicompat(enc)) {
+  bool asciicompat = rb_enc_asciicompat(enc) != 0;
+  if (asciicompat) {
     const unsigned char* non_ascii_pos = NULL;
 
     if (check_blank(ptr, (size_t)len, &non_ascii_pos)) return Qtrue;
@@ -411,6 +412,23 @@ static VALUE rb_str_blank(VALUE str) {
     unsigned int codepoint = rb_enc_mbc_to_codepoint((const char*)ptr, (const char*)end, enc);
     if (!is_blank_codepoint(codepoint, enc, is_unicode)) return Qfalse;
     ptr += MBCLEN_CHARFOUND_LEN(clen);
+
+    /*
+     * An ASCII run starts here, so hand it back to the SIMD scan instead of decoding it a character at a time. Only an ASCII-compatible
+     * encoding may do this: anywhere else a byte below 0x80 is not a character on its own.
+     *
+     * Resuming the decode afterwards is safe too. The scan only ever hands back a position holding a byte of 0x80 or above, and every
+     * byte it passed was a single-byte blank, so the decode restarts on a character boundary. A non-blank ASCII byte settles the answer
+     * outright and leaves no position to hand back.
+     */
+    if (asciicompat && ptr < end && *ptr < 0x80) {
+      const unsigned char* non_ascii_pos = NULL;
+
+      if (check_blank(ptr, (size_t)(end - ptr), &non_ascii_pos)) return Qtrue;
+      if (non_ascii_pos == NULL) return Qfalse;
+
+      ptr = non_ascii_pos;
+    }
   }
 
   return Qtrue;

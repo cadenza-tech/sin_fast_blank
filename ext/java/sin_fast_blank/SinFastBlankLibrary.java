@@ -35,7 +35,7 @@ public class SinFastBlankLibrary implements Library {
             for (int i = s; i < e; i++) {
                 byte c = bytes[i];
                 if (c < 0) {
-                    return blankUnicodeSlow(context, str, bytes, i, e, enc);
+                    return blankMixed(context, str, bytes, i, e, enc);
                 }
                 if (!isAsciiBlank(c)) {
                     return context.fals;
@@ -101,6 +101,41 @@ public class SinFastBlankLibrary implements Library {
             return isUnicodeBlank(codepoint);
         }
         return enc.isSpace(codepoint);
+    }
+
+    /*
+     * Handles the rest of an ASCII-compatible string once its first non-ASCII byte is found: ASCII
+     * runs stay on the bytewise scan and only non-ASCII characters go through the decoder. The
+     * decoder is entered only on character boundaries: every byte the bytewise scan steps over is
+     * a single-byte character, and decoded characters are skipped whole.
+     *
+     * blankUnicodeSlow stays for what this cannot serve: where the encoding is not
+     * ASCII-compatible, a byte below 0x80 is not a character on its own, so every character has to
+     * go through the decoder.
+     */
+    private static IRubyObject blankMixed(
+            ThreadContext context, RubyString str, byte[] bytes, int s, int e, Encoding enc) {
+        while (s < e) {
+            byte c = bytes[s];
+            if (c >= 0) {
+                if (!isAsciiBlank(c)) {
+                    return context.fals;
+                }
+                s++;
+                continue;
+            }
+            int length = StringSupport.preciseLength(enc, bytes, s, e);
+            if (!StringSupport.MBCLEN_CHARFOUND_P(length)) {
+                return blankUndecodable(context, str, enc);
+            }
+            int codepoint = enc.mbcToCode(bytes, s, e);
+            if (!isBlankCodepoint(codepoint, enc)) {
+                return context.fals;
+            }
+            s += StringSupport.MBCLEN_CHARFOUND_LEN(length);
+        }
+
+        return context.tru;
     }
 
     private static IRubyObject blankUnicodeSlow(
