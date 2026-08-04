@@ -20,6 +20,7 @@ class TestAsciiBlank < Minitest::Test
   ].freeze
   UTF8_CODEPOINT_MAX = 0xFFFF
   ASCII_CODEPOINT_MAX = 0xFF
+  SIMD_BOUNDARY_LENGTHS = [1, 7, 8, 15, 16, 17, 31, 32, 33, 43, 63, 64, 65, 127, 128, 129].freeze
 
   def test_equivalency
     test_strings_equivalency
@@ -29,6 +30,26 @@ class TestAsciiBlank < Minitest::Test
 
   def test_null_character
     assert_predicate("\u0000", :ascii_blank?)
+  end
+
+  def test_ascii_blank_strings_at_simd_boundary_lengths
+    SIMD_BOUNDARY_LENGTHS.each do |length|
+      assert_predicate(' ' * length, :ascii_blank?, "length #{length}")
+    end
+  end
+
+  def test_null_characters_at_simd_boundary_lengths
+    SIMD_BOUNDARY_LENGTHS.each do |length|
+      assert_predicate("#{0.chr}#{' ' * (length - 1)}", :ascii_blank?, "length #{length}")
+    end
+  end
+
+  def test_non_blank_edges_at_simd_boundary_lengths
+    SIMD_BOUNDARY_LENGTHS.each do |length|
+      ["x#{' ' * (length - 1)}", "#{' ' * (length - 1)}x"].each do |string|
+        refute_predicate(string, :ascii_blank?, "length #{length}: #{string.inspect}")
+      end
+    end
   end
 
   private
