@@ -52,6 +52,10 @@ class TestAsciiBlank < Minitest::Test
     end
   end
 
+  def test_ascii_blank_inside_ractor
+    assert_equal([true, false], in_ractor { [' '.ascii_blank?, 'a'.ascii_blank?] })
+  end
+
   private
 
   def test_strings_equivalency
