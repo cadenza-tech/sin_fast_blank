@@ -22,6 +22,8 @@ class TestBlank < Minitest::Test
   UTF8_CODEPOINT_MAX = 0xFFFF
   ASCII_CODEPOINT_MAX = 0xFF
   SIMD_BOUNDARY_LENGTHS = [1, 7, 8, 15, 16, 17, 31, 32, 33, 43, 63, 64, 65, 127, 128, 129].freeze
+  NBSP = 0xA0.chr(Encoding::UTF_8)
+  IDEOGRAPHIC_SPACE = 0x3000.chr(Encoding::UTF_8)
 
   def test_equivalency
     test_strings = build_test_strings
@@ -41,30 +43,45 @@ class TestBlank < Minitest::Test
     end
   end
 
-  def test_non_blank_edges_at_simd_boundary_lengths
+  # The chunk scan reports the first non-blank lane it finds, so the byte has to be found wherever it
+  # sits: at the head of a chunk, inside one, and in the overlap the tail rescan reads twice.
+  def test_non_blank_positions_at_simd_boundary_lengths
     SIMD_BOUNDARY_LENGTHS.each do |length|
-      ["x#{' ' * (length - 1)}", "#{' ' * (length - 1)}x"].each do |string|
-        refute_predicate(string, :blank?, "length #{length}: #{string.inspect}")
+      length.times do |position|
+        string = spaces_with('x', length, position)
+
+        refute_predicate(string, :blank?, "length #{length}, position #{position}")
       end
     end
   end
 
   def test_mixed_ascii_and_multibyte_equivalency
-    nbsp = 0xA0.chr(Encoding::UTF_8)
-    ideographic_space = 0x3000.chr(Encoding::UTF_8)
-
     SIMD_BOUNDARY_LENGTHS.each do |length|
       run = ' ' * length
       mixed_strings = [
-        "#{nbsp}#{run}",
-        "#{run}#{nbsp}",
-        "#{nbsp}#{run}#{ideographic_space}#{run}",
-        "#{run}#{ideographic_space}#{run}x",
-        "#{nbsp}#{run}x#{run}"
+        "#{NBSP}#{run}",
+        "#{run}#{NBSP}",
+        "#{NBSP}#{run}#{IDEOGRAPHIC_SPACE}#{run}",
+        "#{run}#{IDEOGRAPHIC_SPACE}#{run}x",
+        "#{NBSP}#{run}x#{run}"
       ]
 
       mixed_strings.each do |string|
         assert_equal(string.as_blank?, string.blank?, string.inspect)
+      end
+    end
+  end
+
+  # Where the vector scan stops it hands the position of the non-ASCII byte to the decoding loop, which
+  # resumes there. Sweeping the character across every lane pins that handoff at each offset in a chunk.
+  def test_multibyte_blank_positions_at_simd_boundary_lengths
+    [NBSP, IDEOGRAPHIC_SPACE].each do |blank_char|
+      SIMD_BOUNDARY_LENGTHS.each do |length|
+        length.times do |position|
+          string = spaces_with(blank_char, length, position)
+
+          assert_equal(string.as_blank?, string.blank?, "length #{length}, position #{position}: #{string.inspect}")
+        end
       end
     end
   end
@@ -91,5 +108,10 @@ class TestBlank < Minitest::Test
     codepoint.chr(encoding)
   rescue StandardError
     nil
+  end
+
+  # A run of ASCII spaces holding one other character, so a sweep can place that character in every lane.
+  def spaces_with(char, length, position)
+    "#{' ' * position}#{char}#{' ' * (length - position - 1)}"
   end
 end
