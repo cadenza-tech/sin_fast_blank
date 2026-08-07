@@ -29,6 +29,9 @@ Rake::TestTask.new(:test) do |task|
   task.pattern = 'test/**/test_*.rb'
 end
 
+# Without this the suite happily runs against a stale binary, so a changed extension looks like it passed.
+Rake::Task[:test].enhance([:compile])
+
 RuboCop::RakeTask.new(:rubocop) do |task|
   task.options = ['--format', ENV['RUBOCOP_FORMAT']] if ENV['RUBOCOP_FORMAT']
 end

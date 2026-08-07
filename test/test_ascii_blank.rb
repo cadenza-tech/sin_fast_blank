@@ -23,9 +23,9 @@ class TestAsciiBlank < Minitest::Test
   SIMD_BOUNDARY_LENGTHS = [1, 7, 8, 15, 16, 17, 31, 32, 33, 43, 63, 64, 65, 127, 128, 129].freeze
 
   def test_equivalency
-    test_strings_equivalency
-    test_utf8_chars_equivalency
-    test_ascii_chars_equivalency
+    assert_test_strings_equivalency
+    assert_utf8_chars_equivalency
+    assert_ascii_chars_equivalency
   end
 
   def test_null_character
@@ -38,16 +38,26 @@ class TestAsciiBlank < Minitest::Test
     end
   end
 
-  def test_null_characters_at_simd_boundary_lengths
+  # NUL is matched by a comparison of its own, separate from the whitespace range, so it has to be
+  # recognized in every lane rather than only at the head of the string.
+  def test_null_character_positions_at_simd_boundary_lengths
     SIMD_BOUNDARY_LENGTHS.each do |length|
-      assert_predicate("#{0.chr}#{' ' * (length - 1)}", :ascii_blank?, "length #{length}")
+      length.times do |position|
+        string = spaces_with(0.chr, length, position)
+
+        assert_predicate(string, :ascii_blank?, "length #{length}, position #{position}")
+      end
     end
   end
 
-  def test_non_blank_edges_at_simd_boundary_lengths
+  # The chunk scan reports the first non-blank lane it finds, so the byte has to be found wherever it
+  # sits: at the head of a chunk, inside one, and in the overlap the tail rescan reads twice.
+  def test_non_blank_positions_at_simd_boundary_lengths
     SIMD_BOUNDARY_LENGTHS.each do |length|
-      ["x#{' ' * (length - 1)}", "#{' ' * (length - 1)}x"].each do |string|
-        refute_predicate(string, :ascii_blank?, "length #{length}: #{string.inspect}")
+      length.times do |position|
+        string = spaces_with('x', length, position)
+
+        refute_predicate(string, :ascii_blank?, "length #{length}, position #{position}")
       end
     end
   end
@@ -58,7 +68,7 @@ class TestAsciiBlank < Minitest::Test
 
   private
 
-  def test_strings_equivalency
+  def assert_test_strings_equivalency
     TEST_STRINGS.each do |s|
       expected = ascii_space_only?(s)
 
@@ -66,7 +76,7 @@ class TestAsciiBlank < Minitest::Test
     end
   end
 
-  def test_utf8_chars_equivalency
+  def assert_utf8_chars_equivalency
     UTF8_CODEPOINT_MAX.times do |i|
       char = safe_chr(i, 'UTF-8')
       next unless char
@@ -75,7 +85,7 @@ class TestAsciiBlank < Minitest::Test
     end
   end
 
-  def test_ascii_chars_equivalency
+  def assert_ascii_chars_equivalency
     ASCII_CODEPOINT_MAX.times do |i|
       char = safe_chr(i, 'ASCII')
       next unless char
@@ -92,5 +102,10 @@ class TestAsciiBlank < Minitest::Test
     codepoint.chr(encoding)
   rescue StandardError
     nil
+  end
+
+  # A run of ASCII spaces holding one other character, so a sweep can place that character in every lane.
+  def spaces_with(char, length, position)
+    "#{' ' * position}#{char}#{' ' * (length - position - 1)}"
   end
 end

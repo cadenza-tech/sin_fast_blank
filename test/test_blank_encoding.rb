@@ -156,13 +156,6 @@ class TestBlankEncoding < Minitest::Test
 
   private
 
-  # Ruby's Big5-HKSCS transcoder emits 88 59 for this character, a sequence the encoding's own scanner
-  # rejects, and leaves the code range reading valid. Built fresh each call and never frozen: up to
-  # Ruby 3.1 String#freeze recomputes the code range, which turns it into a plainly broken string.
-  def transcoder_only_string
-    'À'.encode('Big5-HKSCS')
-  end
-
   def collect_single_byte_mismatches
     mismatches = []
 
@@ -241,6 +234,13 @@ class TestBlankEncoding < Minitest::Test
     return false if DIVERGENT_SINGLE_BYTES.empty?
 
     string.bytesize == string.length && string.bytes.any? { |byte| DIVERGENT_SINGLE_BYTES.include?(byte) }
+  end
+
+  # Ruby's Big5-HKSCS transcoder emits 88 59 for this character, a sequence the encoding's own scanner
+  # rejects, and leaves the code range reading valid. Built fresh each call and never frozen: up to
+  # Ruby 3.1 String#freeze recomputes the code range, which turns it into a plainly broken string.
+  def transcoder_only_string
+    'À'.encode('Big5-HKSCS')
   end
 
   # Not String#inspect: TruffleRuby raises on GB18030 four-byte sequences while building it.
