@@ -23,9 +23,9 @@ class TestAsciiBlank < Minitest::Test
   SIMD_BOUNDARY_LENGTHS = [1, 7, 8, 15, 16, 17, 31, 32, 33, 43, 63, 64, 65, 127, 128, 129].freeze
 
   def test_equivalency
-    test_strings_equivalency
-    test_utf8_chars_equivalency
-    test_ascii_chars_equivalency
+    assert_test_strings_equivalency
+    assert_utf8_chars_equivalency
+    assert_ascii_chars_equivalency
   end
 
   def test_null_character
@@ -58,7 +58,7 @@ class TestAsciiBlank < Minitest::Test
 
   private
 
-  def test_strings_equivalency
+  def assert_test_strings_equivalency
     TEST_STRINGS.each do |s|
       expected = ascii_space_only?(s)
 
@@ -66,7 +66,7 @@ class TestAsciiBlank < Minitest::Test
     end
   end
 
-  def test_utf8_chars_equivalency
+  def assert_utf8_chars_equivalency
     UTF8_CODEPOINT_MAX.times do |i|
       char = safe_chr(i, 'UTF-8')
       next unless char
@@ -75,7 +75,7 @@ class TestAsciiBlank < Minitest::Test
     end
   end
 
-  def test_ascii_chars_equivalency
+  def assert_ascii_chars_equivalency
     ASCII_CODEPOINT_MAX.times do |i|
       char = safe_chr(i, 'ASCII')
       next unless char
