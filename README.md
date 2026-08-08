@@ -62,6 +62,8 @@ Dummy encodings are the one place the two part ways. ActiveSupport cannot build 
 
 SinFastBlank scans left to right and returns as soon as the result is decided, so it can answer before reaching an invalid byte sequence that ActiveSupport's whole-string regexp would trip over: `"a\xFF".blank?` returns `false` where ActiveSupport raises `ArgumentError`. Once the scan does reach one, `blank?` matches ActiveSupport exactly: it raises `ArgumentError` for a string Ruby itself calls broken, and answers `false` for one whose bytes Ruby's own transcoder produced but its scanner rejects (`'À'.encode('Big5-HKSCS')`), which ActiveSupport does not treat as an error either.
 
+One more case parts ways, this time on the receiver rather than its bytes: ActiveSupport shortcuts on `empty?` before matching its regexp, so a String that overrides `empty?` to return true is blank there, where `String#blank?` reads the bytes and answers on what they hold. ActiveSupport documents that call as a speedup for empty strings rather than a hook, and `ActiveSupport::SafeBuffer` does not override it.
+
 ### String#ascii_blank?
 
 ```ruby
