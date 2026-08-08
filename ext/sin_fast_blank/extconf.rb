@@ -27,7 +27,9 @@ unless old_truffleruby
   when /x86_64|i[3-6]86/
     # SSE2 is part of the x86_64 ABI, so -msse2 is always safe there. On 32-bit x86 it is
     # still compiled in unconditionally (pre-SSE2 CPUs would need a runtime dispatch as well).
-    $CFLAGS << ' -msse2'
+    # append_cflags, not $CFLAGS <<: MSVC does not know the flag and would only warn about it,
+    # and it does not need it either, since sin_fast_blank.c reads _M_X64 to reach the same conclusion.
+    append_cflags('-msse2')
     $CFLAGS << ' -DHAVE_AVX2_RUNTIME_DISPATCH' if checking_for('AVX2 runtime dispatch') { try_link(AVX2_RUNTIME_DISPATCH_PROBE) }
   when /aarch64|arm64/
     # No special flags needed as NEON is enabled by default on ARM64
@@ -39,6 +41,7 @@ end
 # rb_ext_ractor_safe() arrived in Ruby 3.0 and the gem still supports 2.3, so Init_sin_fast_blank guards its call on this.
 have_func('rb_ext_ractor_safe')
 
-$CFLAGS << ' -O3 -funroll-loops'
+# Both are GCC/Clang spellings. MSVC ignores them with a warning and keeps the /O2 Ruby already passes.
+append_cflags(['-O3', '-funroll-loops'])
 
 create_makefile 'sin_fast_blank/sin_fast_blank'
