@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/lint.yml'
+      - '.clang-format'
       - '.rubocop.yml'
       - 'Gemfile'
       - 'Rakefile'
