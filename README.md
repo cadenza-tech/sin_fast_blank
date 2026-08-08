@@ -37,6 +37,8 @@ gem install sin_fast_blank
 
 Both methods can be called inside non-main Ractors on CRuby 3.0+.
 
+ActiveSupport defines `String#blank?` on String itself in every version, so whichever of the two is loaded last replaces the other: require `sin_fast_blank` after ActiveSupport. `require 'active_support'` on its own does not reach that definition, while `active_support/all`, `active_support/core_ext/object`, `active_support/core_ext/object/blank` and `rails/all` do. `String.instance_method(:blank?).source_location` is `nil` while the extension is the one in place. `String#ascii_blank?` has no ActiveSupport counterpart and is never replaced.
+
 ### String#blank?
 
 SinFastBlank's String#blank? is compatible with ActiveSupport's String#blank?.
@@ -61,6 +63,8 @@ The check is encoding-aware: codepoints match the same per-encoding `[[:space:]]
 Dummy encodings are the one place the two part ways. ActiveSupport cannot build its regexp for a string tagged `ISO-2022-JP`, `UTF-16` or `UTF-7`, so it raises `RegexpError` or `Encoding::ConverterNotFoundError`; `String#blank?` scans the bytes and answers.
 
 SinFastBlank scans left to right and returns as soon as the result is decided, so it can answer before reaching an invalid byte sequence that ActiveSupport's whole-string regexp would trip over: `"a\xFF".blank?` returns `false` where ActiveSupport raises `ArgumentError`. Once the scan does reach one, `blank?` matches ActiveSupport exactly: it raises `ArgumentError` for a string Ruby itself calls broken, and answers `false` for one whose bytes Ruby's own transcoder produced but its scanner rejects (`'À'.encode('Big5-HKSCS')`), which ActiveSupport does not treat as an error either.
+
+One more case parts ways, this time on the receiver rather than its bytes: ActiveSupport shortcuts on `empty?` before matching its regexp, so a String that overrides `empty?` to return true is blank there, where `String#blank?` reads the bytes and answers on what they hold. ActiveSupport documents that call as a speedup for empty strings rather than a hook, and `ActiveSupport::SafeBuffer` does not override it.
 
 ### String#ascii_blank?
 
