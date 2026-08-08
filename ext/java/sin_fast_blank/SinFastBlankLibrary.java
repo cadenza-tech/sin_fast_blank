@@ -11,6 +11,9 @@ import org.jruby.util.ByteList;
 import org.jruby.util.StringSupport;
 
 public class SinFastBlankLibrary implements Library {
+    private static final int ASCII_WS_RANGE_MIN = 0x09;
+    private static final int ASCII_WS_RANGE_MAX = 0x0d;
+    private static final int ASCII_WS_SPACE = 0x20;
     private static final int MAX_CTYPE_CODEPOINT = 0xFF;
 
     @Override
@@ -48,7 +51,7 @@ public class SinFastBlankLibrary implements Library {
     }
 
     private static boolean isAsciiBlank(byte c) {
-        return (c >= 0x09 && c <= 0x0d) || c == 0x20;
+        return (c >= ASCII_WS_RANGE_MIN && c <= ASCII_WS_RANGE_MAX) || c == ASCII_WS_SPACE;
     }
 
     private static boolean isUnicodeBlank(int codepoint) {
@@ -203,11 +206,14 @@ public class SinFastBlankLibrary implements Library {
     }
 
     private static boolean isAsciiBlankOrNull(byte c) {
-        return c == 0 || (c >= 0x09 && c <= 0x0d) || c == 0x20;
+        return c == 0x00
+                || (c >= ASCII_WS_RANGE_MIN && c <= ASCII_WS_RANGE_MAX)
+                || c == ASCII_WS_SPACE;
     }
 
     private static boolean isAsciiSpace(int codepoint) {
-        return codepoint == ' ' || ('\t' <= codepoint && codepoint <= '\r');
+        return (codepoint >= ASCII_WS_RANGE_MIN && codepoint <= ASCII_WS_RANGE_MAX)
+                || codepoint == ASCII_WS_SPACE;
     }
 
     private static IRubyObject asciiBlankUnicodeSlow(

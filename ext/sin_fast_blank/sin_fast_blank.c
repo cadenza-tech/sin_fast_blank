@@ -346,8 +346,15 @@ static blank_check_func check_blank_dispatch = check_blank_sse2;
 static ascii_blank_check_func check_ascii_blank_dispatch = check_ascii_blank_sse2;
 #endif
 
+/*
+ * The len < 32 shortcut is check_blank_avx2's own first line, hoisted above the dispatch pointer. A call through a pointer cannot be
+ * inlined, and an AVX2-target function cannot be inlined into this caller either, so without the hoist a short string pays two calls to
+ * reach a scan the compiler would otherwise have inlined outright. The strings blank? is asked about are mostly short, and the condition
+ * is the one check_blank_avx2 already tests, so nothing longer changes path.
+ */
 static inline bool check_blank(const unsigned char* ptr, size_t len, const unsigned char** non_ascii_pos) {
 #if defined(SIN_FAST_BLANK_AVX2_DISPATCH)
+  if (len < 32) return check_blank_sse2(ptr, len, non_ascii_pos);
   return check_blank_dispatch(ptr, len, non_ascii_pos);
 #elif defined(SIN_FAST_BLANK_AVX2)
   return check_blank_avx2(ptr, len, non_ascii_pos);
@@ -362,6 +369,7 @@ static inline bool check_blank(const unsigned char* ptr, size_t len, const unsig
 
 static inline bool check_ascii_blank(const unsigned char* ptr, size_t len) {
 #if defined(SIN_FAST_BLANK_AVX2_DISPATCH)
+  if (len < 32) return check_ascii_blank_sse2(ptr, len);
   return check_ascii_blank_dispatch(ptr, len);
 #elif defined(SIN_FAST_BLANK_AVX2)
   return check_ascii_blank_avx2(ptr, len);
