@@ -34,7 +34,10 @@ unless old_truffleruby
   when /aarch64|arm64/
     # No special flags needed as NEON is enabled by default on ARM64
   when /arm/
-    $CFLAGS << ' -mfpu=neon' if have_header('arm_neon.h') && try_compile('#include <arm_neon.h>')
+    # Nothing to add. The NEON chunk helpers reduce with vminvq_u8, which only AArch64 has, so
+    # sin_fast_blank.c gates them on __aarch64__ and 32-bit ARM stays on the scalar scan whatever
+    # -mfpu says. Handing it -mfpu=neon would compile that same scan into a binary that no longer
+    # runs on a NEON-less ARMv7.
   end
 end
 
