@@ -37,6 +37,8 @@ gem install sin_fast_blank
 
 Both methods can be called inside non-main Ractors on CRuby 3.0+.
 
+ActiveSupport defines `String#blank?` on String itself in every version, so whichever of the two is loaded last replaces the other: require `sin_fast_blank` after ActiveSupport. `require 'active_support'` on its own does not reach that definition, while `active_support/all`, `active_support/core_ext/object`, `active_support/core_ext/object/blank` and `rails/all` do. `String.instance_method(:blank?).source_location` is `nil` while the extension is the one in place. `String#ascii_blank?` has no ActiveSupport counterpart and is never replaced.
+
 ### String#blank?
 
 SinFastBlank's String#blank? is compatible with ActiveSupport's String#blank?.
