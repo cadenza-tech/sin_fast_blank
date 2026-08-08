@@ -4,6 +4,8 @@ set -euo pipefail
 JRUBY_IMAGE="jruby:9.1.17.0-jdk"
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
+trap 'rm -f "${PROJECT_DIR}/Gemfile.lock"' EXIT
+
 echo "==> Starting JRuby build in Docker container..."
 echo "    Image: ${JRUBY_IMAGE}"
 echo "    Project: ${PROJECT_DIR}"
@@ -36,5 +38,3 @@ docker run --rm --platform linux/amd64 -v "${PROJECT_DIR}:/app" -w /app "${JRUBY
 
   echo "==> JRuby build and test completed successfully."
 '
-
-rm "${PROJECT_DIR}/Gemfile.lock"
