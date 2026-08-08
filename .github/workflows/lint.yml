@@ -46,7 +46,7 @@ jobs:
           java-version: 25
       - name: Install google-java-format
         run: |
-          VERSION=$(curl -s https://api.github.com/repos/google/google-java-format/releases/latest | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+          VERSION=1.36.1
           curl -fsSL "https://github.com/google/google-java-format/releases/download/v${VERSION}/google-java-format-${VERSION}-all-deps.jar" -o /tmp/google-java-format.jar
       - name: Google Java Format
         run: java -jar /tmp/google-java-format.jar --aosp --dry-run --set-exit-if-changed $(find ext/java -name "*.java")
