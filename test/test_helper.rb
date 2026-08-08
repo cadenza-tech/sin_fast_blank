@@ -6,6 +6,7 @@ require 'minitest/autorun'
 require 'minitest/pride'
 require 'active_support/core_ext/object/blank'
 require_relative 'ractor_test_helper'
+require_relative 'sweep_test_helper'
 
 class String
   alias_method :as_blank?, :blank?
