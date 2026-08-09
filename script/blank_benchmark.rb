@@ -6,12 +6,22 @@ require_relative 'benchmark_helper'
 require_relative 'benchmark_strings'
 
 class BlankBenchmark
-  BENCHMARK_METHODS = {
-    'FastBlank' => [:fast_blank_as?, :fast_blank?],
-    'SinFastBlank' => [:sin_blank?, :sin_ascii_blank?],
-    'ActiveSupport' => [:as_blank?],
-    'Scratch' => [:blank_a?, :blank_b?, :blank_c?, :blank_d?, :blank_e?, :blank_f?, :blank_g?, :blank_h?]
+  # The two groups answer different questions: only the first calls U+3000 and U+00A0 blank, and the
+  # ASCII-only pair returns false for both. Ranking them together prints a speed ratio between methods
+  # that were never asked to do the same work, so each group is reported on its own.
+  BENCHMARK_GROUPS = {
+    'ActiveSupport-compatible' => {
+      'FastBlank' => [:fast_blank_as?],
+      'SinFastBlank' => [:sin_blank?],
+      'ActiveSupport' => [:as_blank?],
+      'Scratch' => [:blank_a?, :blank_b?, :blank_c?, :blank_d?, :blank_e?, :blank_f?, :blank_g?, :blank_h?]
+    },
+    'ASCII-only' => {
+      'FastBlank' => [:fast_blank?],
+      'SinFastBlank' => [:sin_ascii_blank?]
+    }
   }.freeze
+  BENCHMARK_METHODS = BENCHMARK_GROUPS.values.flat_map(&:values).flatten.freeze
 
   # Sending the method name on each iteration measures the dispatch along with the method, and it
   # costs whichever method is fastest the most: on the SinFastBlank entries it takes 5-12% of their
@@ -19,27 +29,25 @@ class BlankBenchmark
   # benchmark-ips enters one of them once per cycle, so the public_send that picks the loop is paid
   # once per batch rather than once per call.
   LOOPS = Module.new do
-    BENCHMARK_METHODS.each_value do |methods|
-      methods.each do |method|
-        module_eval(
-          # def self.#{method}(string, times)
-          #   i = 0
-          #   while i < times
-          #     string.#{method}
-          #     i += 1
-          #   end
-          # end
-          <<~RUBY, __FILE__, __LINE__ + 1
-            def self.#{method}(string, times)
-              i = 0
-              while i < times
-                string.#{method}
-                i += 1
-              end
+    BENCHMARK_METHODS.each do |method|
+      module_eval(
+        # def self.#{method}(string, times)
+        #   i = 0
+        #   while i < times
+        #     string.#{method}
+        #     i += 1
+        #   end
+        # end
+        <<~RUBY, __FILE__, __LINE__ + 1
+          def self.#{method}(string, times)
+            i = 0
+            while i < times
+              string.#{method}
+              i += 1
             end
-          RUBY
-        )
-      end
+          end
+        RUBY
+      )
     end
   end
 
@@ -60,9 +68,11 @@ class BlankBenchmark
     BENCHMARK_STRINGS.each do |string|
       puts "Benchmarking string length: #{string.length}..."
 
-      report = run_benchmark(string)
+      BENCHMARK_GROUPS.each do |group_name, methods_by_library|
+        report = run_benchmark(string, methods_by_library)
 
-      results[string.length] = report.entries.map { |entry| [entry.label, measurement(entry)] }.to_h
+        results[[string.length, group_name]] = report.entries.map { |entry| [entry.label, measurement(entry)] }.to_h
+      end
     end
 
     results
@@ -72,13 +82,13 @@ class BlankBenchmark
     { ips: entry.ips, error: entry.error_percentage }
   end
 
-  def run_benchmark(string)
+  def run_benchmark(string, methods_by_library)
     Benchmark.ips do |x|
       x.time = 5
       x.warmup = 5
       x.quiet = true
 
-      BENCHMARK_METHODS.each do |lib_name, methods|
+      methods_by_library.each do |lib_name, methods|
         methods.each do |method|
           x.report("#{lib_name} - #{method}") { |times| LOOPS.public_send(method, string, times) }
         end
@@ -87,15 +97,15 @@ class BlankBenchmark
   end
 
   def display_results(all_results)
-    all_results.each do |string_length, results|
-      table = create_result_table(string_length, results)
+    all_results.each do |(string_length, group_name), results|
+      table = create_result_table(string_length, group_name, results)
       puts "\n#{table}"
     end
   end
 
-  def create_result_table(string_length, results)
+  def create_result_table(string_length, group_name, results)
     Terminal::Table.new(
-      title: "Benchmark Result (String Length: #{string_length})",
+      title: "Benchmark Result (String Length: #{string_length}, #{group_name})",
       headings: ['Name', 'Iteration Per Second', 'Error', 'Speed Ratio'],
       rows: format_result_rows(results)
     )
