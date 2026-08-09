@@ -6,7 +6,6 @@ require_relative 'benchmark_helper'
 require_relative 'benchmark_strings'
 
 class BlankBenchmark
-  SPEED_RATIO_THRESHOLD = 0.1
   BENCHMARK_METHODS = {
     'FastBlank' => [:fast_blank_as?, :fast_blank?],
     'SinFastBlank' => [:sin_blank?, :sin_ascii_blank?],
@@ -63,10 +62,14 @@ class BlankBenchmark
 
       report = run_benchmark(string)
 
-      results[string.length] = report.entries.map { |entry| [entry.label, entry.ips] }.to_h
+      results[string.length] = report.entries.map { |entry| [entry.label, measurement(entry)] }.to_h
     end
 
     results
+  end
+
+  def measurement(entry)
+    { ips: entry.ips, error: entry.error_percentage }
   end
 
   def run_benchmark(string)
@@ -93,24 +96,38 @@ class BlankBenchmark
   def create_result_table(string_length, results)
     Terminal::Table.new(
       title: "Benchmark Result (String Length: #{string_length})",
-      headings: ['Name', 'Iteration Per Second', 'Speed Ratio'],
+      headings: ['Name', 'Iteration Per Second', 'Error', 'Speed Ratio'],
       rows: format_result_rows(results)
     )
   end
 
   def format_result_rows(results)
-    sorted_results = results.sort_by { |_key, value| value }.reverse
-    fastest_speed = sorted_results.first[1]
+    sorted_results = results.sort_by { |_key, value| value[:ips] }.reverse
+    fastest = sorted_results.first[1]
     sorted_results.map do |key, value|
-      [key.sub(/(fast|sin|as)_/, ''), format('%.1f', value), calculate_speed_ratio(fastest_speed, value)]
+      [key.sub(/(fast|sin|as)_/, ''), format('%.1f', value[:ips]), format('±%.2f%%', value[:error]),
+       calculate_speed_ratio(fastest, value)]
     end
   end
 
-  def calculate_speed_ratio(fastest_speed, current_speed)
-    speed_ratio = fastest_speed / current_speed
-    return 'Fastest' if speed_ratio - 1 < SPEED_RATIO_THRESHOLD
+  # Two entries are indistinguishable when the noise both were measured with leaves them unseparated.
+  # The flat 10% this replaces sat above the measured error at most string lengths and below it at
+  # length 0, where the methods run fast enough for the noise to dominate.
+  def calculate_speed_ratio(fastest, current)
+    speed_ratio = (fastest[:ips] / current[:ips]).round(1)
+    # A ratio that rounds to 1.0 reads as slower while saying the two ran at the same speed, so it is
+    # a tie on its own terms. It also answers the fastest row, whose zero gap does not fall inside a
+    # zero-width band.
+    return 'Fastest' if speed_ratio <= 1.0 || overlapping_error_bands?(fastest, current)
 
-    "#{speed_ratio.round(1)}x slower"
+    "#{speed_ratio}x slower"
+  end
+
+  # The bands are compared as iterations rather than as the two percentages, which are each a share of
+  # a different mean: adding them would shrink the fastest row's half of the band by exactly the ratio
+  # being judged.
+  def overlapping_error_bands?(fastest, current)
+    current[:ips] * (1 + (current[:error] / 100)) > fastest[:ips] * (1 - (fastest[:error] / 100))
   end
 end
 
