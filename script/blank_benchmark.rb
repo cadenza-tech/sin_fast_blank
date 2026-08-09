@@ -6,6 +6,10 @@ require_relative 'benchmark_helper'
 require_relative 'benchmark_strings'
 
 class BlankBenchmark
+  # Above this the ratios move from one run to the next, so the table is not one to copy into the
+  # README. Every row prints its own error either way, but reading each of them is the check that
+  # gets skipped.
+  ERROR_PERCENTAGE_THRESHOLD = 5.0
   # The two groups answer different questions: only the first calls U+3000 and U+00A0 blank, and the
   # ASCII-only pair returns false for both. Ranking them together prints a speed ratio between methods
   # that were never asked to do the same work, so each group is reported on its own.
@@ -98,14 +102,25 @@ class BlankBenchmark
 
   def display_results(all_results)
     all_results.each do |(string_length, group_name), results|
-      table = create_result_table(string_length, group_name, results)
-      puts "\n#{table}"
+      title = "String Length: #{string_length}, #{group_name}"
+
+      puts "\n#{create_result_table(title, results)}"
+      warn_about_noise(title, results)
     end
   end
 
-  def create_result_table(string_length, group_name, results)
+  def warn_about_noise(title, results)
+    noisy = results.select { |_label, value| value[:error] > ERROR_PERCENTAGE_THRESHOLD }.sort_by { |_label, value| -value[:error] }
+    return if noisy.empty?
+
+    puts "Warning: #{title} was measured above ±#{ERROR_PERCENTAGE_THRESHOLD}%, " \
+         'so its ratios are not steady enough to publish:'
+    noisy.each { |label, value| puts "  #{display_label(label)} ±#{format('%.2f', value[:error])}%" }
+  end
+
+  def create_result_table(title, results)
     Terminal::Table.new(
-      title: "Benchmark Result (String Length: #{string_length}, #{group_name})",
+      title: "Benchmark Result (#{title})",
       headings: ['Name', 'Iteration Per Second', 'Error', 'Speed Ratio'],
       rows: format_result_rows(results)
     )
@@ -115,11 +130,14 @@ class BlankBenchmark
     sorted_results = results.sort_by { |_key, value| value[:ips] }.reverse
     fastest = sorted_results.first[1]
     sorted_results.map do |key, value|
-      # Anchored on the separator: sub replaces the first match anywhere, and an unanchored pattern
-      # would eat a library name that happened to start the same way.
-      [key.sub(/ - (?:fast|sin|as)_/, ' - '), format('%.1f', value[:ips]), format('±%.2f%%', value[:error]),
-       calculate_speed_ratio(fastest, value)]
+      [display_label(key), format('%.1f', value[:ips]), format('±%.2f%%', value[:error]), calculate_speed_ratio(fastest, value)]
     end
+  end
+
+  # Anchored on the separator: sub replaces the first match anywhere, and an unanchored pattern
+  # would eat a library name that happened to start the same way.
+  def display_label(label)
+    label.sub(/ - (?:fast|sin|as)_/, ' - ')
   end
 
   # Two entries are indistinguishable when the noise both were measured with leaves them unseparated.
