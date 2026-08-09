@@ -129,9 +129,20 @@ class BlankBenchmark
   def format_result_rows(results)
     sorted_results = results.sort_by { |_key, value| value[:ips] }.reverse
     fastest = sorted_results.first[1]
-    sorted_results.map do |key, value|
-      [display_label(key), format('%.1f', value[:ips]), format('±%.2f%%', value[:error]), calculate_speed_ratio(fastest, value)]
+    # Rows run fastest first, so the tie is the run from the top that ends at the first row the error
+    # cannot explain away. Asking each row on its own instead would let a noisy row further down read
+    # as a tie and print Fastest under a row already marked slower, which reads as an unsorted table.
+    tied = sorted_results.take_while { |_key, value| indistinguishable?(fastest, value) }.length
+
+    sorted_results.each_with_index.map do |(key, value), index|
+      [display_label(key), format('%.1f', value[:ips]), format('±%.2f%%', value[:error]), speed_ratio(fastest, value, index < tied)]
     end
+  end
+
+  def speed_ratio(fastest, current, tied)
+    return 'Fastest' if tied
+
+    "#{(fastest[:ips] / current[:ips]).round(1)}x slower"
   end
 
   # Anchored on the separator: sub replaces the first match anywhere, and an unanchored pattern
@@ -143,14 +154,13 @@ class BlankBenchmark
   # Two entries are indistinguishable when the noise both were measured with leaves them unseparated.
   # The flat 10% this replaces sat above the measured error at most string lengths and below it at
   # length 0, where the methods run fast enough for the noise to dominate.
-  def calculate_speed_ratio(fastest, current)
-    speed_ratio = (fastest[:ips] / current[:ips]).round(1)
+  def indistinguishable?(fastest, current)
     # A ratio that rounds to 1.0 reads as slower while saying the two ran at the same speed, so it is
     # a tie on its own terms. It also answers the fastest row, whose zero gap does not fall inside a
     # zero-width band.
-    return 'Fastest' if speed_ratio <= 1.0 || overlapping_error_bands?(fastest, current)
+    return true if (fastest[:ips] / current[:ips]).round(1) <= 1.0
 
-    "#{speed_ratio}x slower"
+    overlapping_error_bands?(fastest, current)
   end
 
   # The bands are compared as iterations rather than as the two percentages, which are each a share of
