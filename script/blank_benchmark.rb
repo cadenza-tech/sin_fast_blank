@@ -115,7 +115,9 @@ class BlankBenchmark
     sorted_results = results.sort_by { |_key, value| value[:ips] }.reverse
     fastest = sorted_results.first[1]
     sorted_results.map do |key, value|
-      [key.sub(/(fast|sin|as)_/, ''), format('%.1f', value[:ips]), format('±%.2f%%', value[:error]),
+      # Anchored on the separator: sub replaces the first match anywhere, and an unanchored pattern
+      # would eat a library name that happened to start the same way.
+      [key.sub(/ - (?:fast|sin|as)_/, ' - '), format('%.1f', value[:ips]), format('±%.2f%%', value[:error]),
        calculate_speed_ratio(fastest, value)]
     end
   end
