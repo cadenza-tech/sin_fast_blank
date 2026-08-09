@@ -14,6 +14,36 @@ class BlankBenchmark
     'Scratch' => [:blank_a?, :blank_b?, :blank_c?, :blank_d?, :blank_e?, :blank_f?, :blank_g?, :blank_h?]
   }.freeze
 
+  # Sending the method name on each iteration measures the dispatch along with the method, and it
+  # costs whichever method is fastest the most: on the SinFastBlank entries it takes 5-12% of their
+  # throughput, the size of the gap being reported. These loops name the method outright instead.
+  # benchmark-ips enters one of them once per cycle, so the public_send that picks the loop is paid
+  # once per batch rather than once per call.
+  LOOPS = Module.new do
+    BENCHMARK_METHODS.each_value do |methods|
+      methods.each do |method|
+        module_eval(
+          # def self.#{method}(string, times)
+          #   i = 0
+          #   while i < times
+          #     string.#{method}
+          #     i += 1
+          #   end
+          # end
+          <<~RUBY, __FILE__, __LINE__ + 1
+            def self.#{method}(string, times)
+              i = 0
+              while i < times
+                string.#{method}
+                i += 1
+              end
+            end
+          RUBY
+        )
+      end
+    end
+  end
+
   def self.run
     new.run
   end
@@ -47,13 +77,7 @@ class BlankBenchmark
 
       BENCHMARK_METHODS.each do |lib_name, methods|
         methods.each do |method|
-          x.report("#{lib_name} - #{method}") do |times|
-            i = 0
-            while i < times
-              string.send(method)
-              i += 1
-            end
-          end
+          x.report("#{lib_name} - #{method}") { |times| LOOPS.public_send(method, string, times) }
         end
       end
     end
