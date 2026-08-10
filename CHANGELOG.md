@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0] - 2026-08-10
+
+### Added
+
+- Add Ractor support
+- Add SSE2 SIMD support on mswin builds
+
+### Changed
+
+- Improve SIMD performance with overlapped final chunks and continued ASCII scanning
+- Skip the dispatch pointer for short strings
+- Simplify native extension loading
+- Refactor Java extension
+- Add JRuby build and test script
+- Build JRuby extension against the oldest supported JRuby
+- Probe compiler flags before adding them
+- Drop the unused 32-bit ARM NEON flag
+- Make test task depend on compile
+- Minimize gem version constraints
+- Remove unneeded json gem dependency
+- Update tests
+- Improve test CI
+- Improve lint CI
+- Require tests to pass before releasing
+- Upgrade actions/checkout to v7
+- Improve benchmark
+- Update .rubocop.yml
+- Update .gitignore
+- Update README.md
+- Update sponsor links
+- Update compiled jar
+
+### Fixed
+
+- Fix `blank?` to match per-encoding space tables
+- Fix `blank?` to raise only when Ruby calls the string broken
+- Fix `ascii_blank?` to answer instead of raising on invalid byte sequences
+- Fix AVX2 selection to use runtime CPU detection
+- Fix Java extension loading without `JRuby::Util.load_ext`
+- Fix packaged gem to include files under lib
+- Fix C extension install path
+- Fix stray compiled jar getting into the packaged gem
+- Fix benchmark
+
 ## [4.0.1] - 2026-02-22
 
 ### Changed
@@ -155,6 +199,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
+[5.0.0]: https://github.com/cadenza-tech/sin_fast_blank/compare/v4.0.1...v5.0.0
 [4.0.1]: https://github.com/cadenza-tech/sin_fast_blank/compare/v4.0.0...v4.0.1
 [4.0.0]: https://github.com/cadenza-tech/sin_fast_blank/compare/v3.1.1...v4.0.0
 [3.1.1]: https://github.com/cadenza-tech/sin_fast_blank/compare/v3.1.0...v3.1.1
