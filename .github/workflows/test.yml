@@ -10,7 +10,7 @@ on:
       - 'lib/**/*'
       - '**/*.rb'
   schedule:
-    - cron: '0 12 * * 5'
+    - cron: '30 0 * * 5'
   workflow_call:
 permissions:
   contents: read
@@ -74,11 +74,8 @@ jobs:
         ruby-version:
           - '3.4'
           - '4.0'
-          - 'jruby-9.4'
           - 'jruby-10.1'
-          - 'truffleruby-24'
           - 'truffleruby-34'
-          - 'truffleruby+graalvm-24'
           - 'truffleruby+graalvm-34'
     steps:
       - name: Checkout code
